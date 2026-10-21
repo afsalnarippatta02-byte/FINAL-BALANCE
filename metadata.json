@@ -1,0 +1,6 @@
+{
+  "name": "Final Balance",
+  "description": "Minimalist personal finance tracker with category budgeting, credit card payoff alerts, automated transaction syncing, and spending distribution charts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
