@@ -19,7 +19,10 @@ import { AddCardModal } from './components/modals/AddCardModal';
 import { AddTransactionModal } from './components/modals/AddTransactionModal';
 import { ImportCSVModal } from './components/modals/ImportCSVModal';
 
+import { useFinance } from './context/FinanceContext';
+
 function AppContent() {
+  const { cards } = useFinance();
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -30,7 +33,13 @@ function AppContent() {
   const [isImportCSVOpen, setIsImportCSVOpen] = useState(false);
 
   const handleOpenPayment = (cardId?: string) => {
-    setPaymentCardId(cardId || 'card-chase');
+    if (cardId) {
+      setPaymentCardId(cardId);
+    } else if (cards.length > 0) {
+      setPaymentCardId(cards[0].id);
+    } else {
+      setIsAddCardOpen(true);
+    }
   };
 
   return (

@@ -65,7 +65,13 @@ export const INITIAL_CATEGORIES: BudgetCategory[] = [
   },
 ];
 
-export const INITIAL_CARDS: CreditCard[] = [
+// Clean empty initial state for user's real financial records
+export const INITIAL_CARDS: CreditCard[] = [];
+export const INITIAL_TRANSACTIONS: Transaction[] = [];
+export const INITIAL_SYNC_LOGS: SyncRecord[] = [];
+
+// Retained as optional demo fixtures if user requests demo data
+export const SAMPLE_DEMO_CARDS: CreditCard[] = [
   {
     id: 'card-enbd',
     name: 'Emirates NBD Duo',
@@ -74,7 +80,7 @@ export const INITIAL_CARDS: CreditCard[] = [
     currentBalance: 2450.00,
     creditLimit: 12000,
     apr: 22.00,
-    statementDueDate: getOffsetDate(4), // Due in 4 days! Remainder countdown
+    statementDueDate: getOffsetDate(4),
     statementBalance: 2150.00,
     minimumPayment: 110.00,
     colorTheme: 'from-slate-900 via-blue-950 to-indigo-900',
@@ -88,7 +94,7 @@ export const INITIAL_CARDS: CreditCard[] = [
     bankName: 'HDFC Bank (India)',
     last4: '9104',
     currentBalance: 8400.00,
-    creditLimit: 10000, // 84% utilization -> alert
+    creditLimit: 10000,
     apr: 24.50,
     statementDueDate: getOffsetDate(12),
     statementBalance: 7800.00,
@@ -103,7 +109,7 @@ export const INITIAL_CARDS: CreditCard[] = [
     name: 'Mashreq Platinum Cashback',
     bankName: 'Mashreq Bank (UAE)',
     last4: '6172',
-    currentBalance: 0.00, // Paid earlier!
+    currentBalance: 0.00,
     creditLimit: 8500,
     apr: 21.00,
     statementDueDate: getOffsetDate(20),
@@ -112,11 +118,11 @@ export const INITIAL_CARDS: CreditCard[] = [
     colorTheme: 'from-zinc-900 via-neutral-800 to-stone-900',
     isAutoSyncEnabled: true,
     lastSyncedAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-    isPaidForCycle: true, // Paid earlier - NO alerts/notifications needed
+    isPaidForCycle: true,
   },
 ];
 
-export const INITIAL_TRANSACTIONS: Transaction[] = [
+export const SAMPLE_DEMO_TRANSACTIONS: Transaction[] = [
   {
     id: 'tx-1',
     date: getOffsetDate(0),
@@ -149,96 +155,15 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     type: 'expense',
     notes: 'Fuel top-up',
   },
-  {
-    id: 'tx-4',
-    date: getOffsetDate(-2),
-    amount: 240.00,
-    merchant: 'Swiggy / Zomato Dining',
-    categoryId: 'cat-dining',
-    accountId: 'card-hdfc',
-    status: 'cleared',
-    type: 'expense',
-  },
-  {
-    id: 'tx-5',
-    date: getOffsetDate(-3),
-    amount: 3200.00,
-    merchant: 'Monthly Residence Rent',
-    categoryId: 'cat-housing',
-    accountId: 'checking',
-    status: 'cleared',
-    type: 'expense',
-    notes: 'Monthly rental settlement',
-  },
-  {
-    id: 'tx-6',
-    date: getOffsetDate(-3),
-    amount: 85.00,
-    merchant: 'Costa Coffee & Bistro',
-    categoryId: 'cat-dining',
-    accountId: 'card-enbd',
-    status: 'cleared',
-    type: 'expense',
-  },
-  {
-    id: 'tx-7',
-    date: getOffsetDate(-4),
-    amount: 45.00,
-    merchant: 'Etisalat / Airtel Telecom',
-    categoryId: 'cat-utilities',
-    accountId: 'card-enbd',
-    status: 'cleared',
-    type: 'expense',
-  },
-  {
-    id: 'tx-8',
-    date: getOffsetDate(-5),
-    amount: 210.00,
-    merchant: 'Aster Pharmacy Care',
-    categoryId: 'cat-health',
-    accountId: 'card-hdfc',
-    status: 'cleared',
-    type: 'expense',
-  },
-  {
-    id: 'tx-9',
-    date: getOffsetDate(-6),
-    amount: 350.00,
-    merchant: 'Sharaf DG Electronics',
-    categoryId: 'cat-shopping',
-    accountId: 'card-hdfc',
-    status: 'cleared',
-    type: 'expense',
-    notes: 'Phone accessories & charger',
-  },
-  {
-    id: 'tx-10',
-    date: getOffsetDate(-8),
-    amount: 620.00,
-    merchant: 'Mashreq Payment (Settled Early)',
-    categoryId: 'cat-housing',
-    accountId: 'card-mashreq',
-    status: 'cleared',
-    type: 'payment',
-    notes: 'Full balance settled early - notification suppressed',
-  },
 ];
 
-export const INITIAL_SYNC_LOGS: SyncRecord[] = [
+export const SAMPLE_DEMO_SYNC_LOGS: SyncRecord[] = [
   {
     id: 'sync-1',
     timestamp: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
     cardName: 'Emirates NBD Duo',
     transactionsImported: 2,
     totalAmount: 305.50,
-    status: 'completed',
-  },
-  {
-    id: 'sync-2',
-    timestamp: new Date(Date.now() - 1000 * 60 * 42).toISOString(),
-    cardName: 'HDFC Regalia Gold',
-    transactionsImported: 1,
-    totalAmount: 240.00,
     status: 'completed',
   },
 ];

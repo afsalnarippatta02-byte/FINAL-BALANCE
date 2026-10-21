@@ -12,6 +12,9 @@ import {
   INITIAL_CARDS, 
   INITIAL_TRANSACTIONS, 
   INITIAL_SYNC_LOGS, 
+  SAMPLE_DEMO_CARDS,
+  SAMPLE_DEMO_TRANSACTIONS,
+  SAMPLE_DEMO_SYNC_LOGS,
   SIMULATED_MERCHANT_FEED,
   getOffsetDate
 } from '../data/initialData';
@@ -43,18 +46,20 @@ interface FinanceContextType {
   recordPayment: (cardId: string, amount: number) => void;
   markCardPaidEarly: (cardId: string, isPaid: boolean) => void;
   importCSV: (csvContent: string) => { added: number; errors: string[] };
+  clearAllData: () => void;
+  loadSampleData: () => void;
   resetData: () => void;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
-  CURRENCY: 'clarity_currency_v2',
-  CATEGORIES: 'clarity_categories_v2',
-  CARDS: 'clarity_cards_v2',
-  TRANSACTIONS: 'clarity_transactions_v2',
-  SYNC_LOGS: 'clarity_sync_logs_v2',
-  AUTO_SYNC: 'clarity_auto_sync_v2',
+  CURRENCY: 'finalbalance_currency_v4',
+  CATEGORIES: 'finalbalance_categories_v4',
+  CARDS: 'finalbalance_cards_v4',
+  TRANSACTIONS: 'finalbalance_transactions_v4',
+  SYNC_LOGS: 'finalbalance_sync_logs_v4',
+  AUTO_SYNC: 'finalbalance_auto_sync_v4',
 };
 
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -122,14 +127,30 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [autoSyncActive, setAutoSyncActive] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.AUTO_SYNC);
-      return saved !== null ? JSON.parse(saved) : true;
+      return saved !== null ? JSON.parse(saved) : false;
     } catch {
-      return true;
+      return false;
     }
   });
 
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [lastGlobalSync, setLastGlobalSync] = useState<string | null>(() => new Date().toISOString());
+  const [lastGlobalSync, setLastGlobalSync] = useState<string | null>(null);
+
+  // Clean legacy dummy keys on initial mount to guarantee fresh clean state
+  useEffect(() => {
+    const legacyKeys = [
+      'clarity_currency_v2', 'clarity_categories_v2', 'clarity_cards_v2',
+      'clarity_transactions_v2', 'clarity_sync_logs_v2', 'clarity_auto_sync_v2',
+      'clarity_currency', 'clarity_categories', 'clarity_cards', 'clarity_transactions'
+    ];
+    legacyKeys.forEach(k => {
+      try {
+        localStorage.removeItem(k);
+      } catch {
+        // ignore
+      }
+    });
+  }, []);
 
   // Save to localStorage
   useEffect(() => {
@@ -516,18 +537,27 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return { added: newItems.length, errors: [] };
   };
 
-  const resetData = () => {
-    localStorage.removeItem(STORAGE_KEYS.CATEGORIES);
+  const clearAllData = () => {
     localStorage.removeItem(STORAGE_KEYS.CARDS);
     localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
     localStorage.removeItem(STORAGE_KEYS.SYNC_LOGS);
     localStorage.removeItem(STORAGE_KEYS.AUTO_SYNC);
+    setCards([]);
+    setTransactions([]);
+    setSyncLogs([]);
+    setAutoSyncActive(false);
+    setLastGlobalSync(null);
+  };
+
+  const loadSampleData = () => {
     setCategories(INITIAL_CATEGORIES);
-    setCards(INITIAL_CARDS);
-    setTransactions(INITIAL_TRANSACTIONS);
-    setSyncLogs(INITIAL_SYNC_LOGS);
-    setAutoSyncActive(true);
-    setLastGlobalSync(new Date().toISOString());
+    setCards(SAMPLE_DEMO_CARDS);
+    setTransactions(SAMPLE_DEMO_TRANSACTIONS);
+    setSyncLogs(SAMPLE_DEMO_SYNC_LOGS);
+  };
+
+  const resetData = () => {
+    clearAllData();
   };
 
   return (
@@ -559,6 +589,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         recordPayment,
         markCardPaidEarly,
         importCSV,
+        clearAllData,
+        loadSampleData,
         resetData,
       }}
     >

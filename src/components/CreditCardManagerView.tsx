@@ -165,17 +165,36 @@ export const CreditCardManagerView: React.FC<CreditCardManagerViewProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {cards.map(card => (
-            <CreditCardCard
-              key={card.id}
-              card={card}
-              onPayClick={(id) => onPayCard(id)}
-              onSyncClick={(id) => triggerManualSync(id)}
-              isSyncing={isSyncing}
-            />
-          ))}
-        </div>
+        {cards.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-800 rounded-xl p-10 text-center flex flex-col items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-3">
+              <CardIcon className="w-6 h-6" />
+            </div>
+            <h4 className="text-sm font-semibold text-slate-900 dark:text-white">No Credit Cards Registered</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-1 mb-4">
+              Add your UAE (e.g. ENBD, Mashreq) or Indian (e.g. HDFC, ICICI, SBI) cards to monitor balances and upcoming payment dates.
+            </p>
+            <button
+              onClick={onOpenAddCard}
+              className="px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Your First Credit Card</span>
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {cards.map(card => (
+              <CreditCardCard
+                key={card.id}
+                card={card}
+                onPayClick={(id) => onPayCard(id)}
+                onSyncClick={(id) => triggerManualSync(id)}
+                isSyncing={isSyncing}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Real-Time Debt Payoff Calculator */}

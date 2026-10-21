@@ -9,7 +9,9 @@ import {
   RotateCcw,
   Sun,
   Moon,
-  CheckCircle2
+  CheckCircle2,
+  Trash2,
+  Sparkles
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useTheme } from '../context/ThemeContext';
@@ -29,9 +31,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile,
   onCloseMobile,
 }) => {
-  const { alerts, isSyncing, autoSyncActive, toggleAutoSync, resetData, lastGlobalSync } = useFinance();
+  const { alerts, isSyncing, autoSyncActive, toggleAutoSync, clearAllData, loadSampleData, lastGlobalSync } = useFinance();
   const { isDark, toggleTheme } = useTheme();
-  const [isResetConfirmOpen, setIsResetConfirmOpen] = React.useState(false);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = React.useState(false);
+  const [isDemoConfirmOpen, setIsDemoConfirmOpen] = React.useState(false);
 
   const urgentAlertsCount = alerts.filter(a => a.severity === 'critical' || a.type === 'due_soon').length;
 
@@ -183,7 +186,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
 
-          {/* User Profile & Reset */}
+          {/* User Profile & Clear Data */}
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center font-semibold text-[10px]">
@@ -192,37 +195,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[100px]">Afsal N.</span>
             </div>
 
-            <button
-              onClick={() => setIsResetConfirmOpen(true)}
-              title="Reset to sample data"
-              className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
-              aria-label="Reset to sample data"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setIsDemoConfirmOpen(true)}
+                title="Load sample demo data"
+                className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+                aria-label="Load sample demo data"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                onClick={() => setIsClearConfirmOpen(true)}
+                title="Clear all data (clean slate)"
+                className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded transition-colors"
+                aria-label="Clear all data"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* In-App Reset Confirmation Dialog */}
-        {isResetConfirmOpen && (
+        {/* In-App Clear All Data Confirmation Dialog */}
+        {isClearConfirmOpen && (
           <div 
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150"
-            onClick={() => setIsResetConfirmOpen(false)}
+            onClick={() => setIsClearConfirmOpen(false)}
           >
             <div 
               className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-xs w-full p-5 text-slate-900 dark:text-slate-100"
               onClick={e => e.stopPropagation()}
             >
               <h3 className="text-sm font-semibold tracking-tight mb-1.5 text-slate-900 dark:text-white">
-                Reset to Sample Data?
+                Clear All Existing Data?
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
-                This will restore all default UAE and India credit cards, transactions, and budget categories.
+                This will permanently remove all transactions, registered credit cards, and sync logs, giving you a clean slate.
               </p>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsResetConfirmOpen(false)}
+                  onClick={() => setIsClearConfirmOpen(false)}
                   className="px-3 py-1.5 text-xs font-medium rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
                 >
                   Cancel
@@ -230,12 +244,51 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    resetData();
-                    setIsResetConfirmOpen(false);
+                    clearAllData();
+                    setIsClearConfirmOpen(false);
                   }}
                   className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 shadow-xs"
                 >
-                  Reset
+                  Clear Everything
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* In-App Load Sample Data Confirmation Dialog */}
+        {isDemoConfirmOpen && (
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150"
+            onClick={() => setIsDemoConfirmOpen(false)}
+          >
+            <div 
+              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-xs w-full p-5 text-slate-900 dark:text-slate-100"
+              onClick={e => e.stopPropagation()}
+            >
+              <h3 className="text-sm font-semibold tracking-tight mb-1.5 text-slate-900 dark:text-white">
+                Load Sample Demo Data?
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+                This will populate sample UAE and Indian credit cards, categories, and test transactions for previewing.
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsDemoConfirmOpen(false)}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadSampleData();
+                    setIsDemoConfirmOpen(false);
+                  }}
+                  className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs"
+                >
+                  Load Samples
                 </button>
               </div>
             </div>

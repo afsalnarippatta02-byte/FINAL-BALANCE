@@ -143,17 +143,36 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {cards.map(card => (
-            <CreditCardCard
-              key={card.id}
-              card={card}
-              onPayClick={(id) => onPayCard(id)}
-              onSyncClick={(id) => triggerManualSync(id)}
-              isSyncing={isSyncing}
-            />
-          ))}
-        </div>
+        {cards.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-800 rounded-xl p-8 text-center flex flex-col items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-3">
+              <CreditCard className="w-6 h-6" />
+            </div>
+            <h4 className="text-sm font-semibold text-slate-900 dark:text-white">No Credit Cards Added</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-1 mb-4">
+              Connect your UAE or Indian credit cards to track live balances, statement due dates, and payoff reminders.
+            </p>
+            <button
+              onClick={() => onNavigateTab('cards')}
+              className="px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Add Your First Card</span>
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {cards.map(card => (
+              <CreditCardCard
+                key={card.id}
+                card={card}
+                onPayClick={(id) => onPayCard(id)}
+                onSyncClick={(id) => triggerManualSync(id)}
+                isSyncing={isSyncing}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 4. Recent Transactions Table */}
@@ -189,8 +208,82 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Ledger Table */}
-        <div className="overflow-x-auto">
+        {/* Mobile View: Compact Cards (< sm) */}
+        <div className="sm:hidden space-y-2 pt-1">
+          {recentTransactions.length === 0 ? (
+            <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs">
+              No transactions match your search.
+            </div>
+          ) : (
+            recentTransactions.map(tx => {
+              const cat = getCategory(tx.categoryId);
+              const isPayment = tx.type === 'payment';
+              const isIncome = tx.type === 'income';
+
+              return (
+                <div
+                  key={tx.id}
+                  className="p-3 rounded-lg bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-slate-500 dark:text-slate-400 text-[11px]">{tx.date}</span>
+                      <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
+                        tx.status === 'cleared'
+                          ? 'text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800'
+                          : 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60'
+                      }`}>
+                        {tx.status === 'cleared' ? 'Cleared' : 'Pending'}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setDeleteTarget({
+                          type: 'transaction',
+                          id: tx.id,
+                          title: tx.merchant,
+                          details: `${tx.date} · ${formatMoney(tx.amount)} · ${cat?.name || 'Uncategorized'}`,
+                        });
+                      }}
+                      className="p-1 text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400"
+                      title="Delete transaction"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-baseline justify-between gap-2 mb-1">
+                    <span className="font-semibold text-slate-900 dark:text-white text-xs truncate">
+                      {tx.merchant}
+                    </span>
+                    <span className={`font-mono font-bold text-xs shrink-0 tabular-nums ${
+                      isPayment 
+                        ? 'text-indigo-600 dark:text-indigo-400' 
+                        : isIncome 
+                        ? 'text-emerald-600 dark:text-emerald-400' 
+                        : 'text-slate-900 dark:text-white'
+                    }`}>
+                      {isPayment ? '-' : isIncome ? '+' : ''}{formatMoney(tx.amount)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400">
+                    <div className="flex items-center gap-1 truncate">
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cat?.color || '#94a3b8' }} />
+                      <span className="truncate">{cat?.name || 'Uncategorized'}</span>
+                    </div>
+                    <span>•</span>
+                    <span className="truncate">{getAccountName(tx.accountId)}</span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop View: Ledger Table (sm+) */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-medium">

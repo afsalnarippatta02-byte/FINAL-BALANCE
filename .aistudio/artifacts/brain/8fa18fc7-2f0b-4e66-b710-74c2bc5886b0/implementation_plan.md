@@ -1,13 +1,15 @@
-# Clarity Ledger — Personal Finance & Credit Card Debt Tracker
+# Final Balance — Personal Finance & Credit Card Debt Tracker
 
-A clean, minimalist personal finance web application that unifies monthly category budgeting, automated credit card transaction syncing, real-time statement due date and payoff alerts, and category expense visualization with Recharts.
+A clean, minimalist personal finance web application that unifies monthly category budgeting, automated credit card transaction syncing, real-time statement due date and payoff alerts, automated search & filter ledger, and category expense visualization with Recharts.
 
 > [!IMPORTANT]
 > **Confirmed User Decisions & Preferences:**
-> - **Visual Style & Theme**: Clean minimalist light interface with subtle soft accents, high-contrast typography, and single-elevation surfaces.
-> - **Credit Card Debt Strategy**: Simple balance tracking with prominent statement due date alerts, minimum payment warnings, and credit utilization gauges.
+> - **Brand & Identity**: Final Balance (with dedicated UAE AED 🇦🇪 and Indian Rupee ₹ INR currency support).
+> - **Visual Style & Theme**: Clean minimalist interface with Tailwind dark mode toggle, compact mobile bottom navigation, and high-contrast typography.
+> - **Automated Search & Filter**: Real-time keyword search, date range presets, custom range pickers, category/account/status filters, and live aggregates.
+> - **Credit Card Debt Strategy**: Simple balance tracking with prominent statement due date alerts, early payment suppression, and credit utilization gauges.
 > - **Transaction Syncing**: Realistic automated bank/card sync engine with simulated feed fetching, instant one-click sync, and CSV statement upload.
-> - **Visualization**: Interactive Recharts bar chart on the main dashboard displaying monthly spending distribution against budget thresholds by category.
+> - **Screen Size Compatibility**: Adaptive responsive layout featuring mobile thumb-friendly card rows and full desktop tabular ledger.
 
 ---
 
