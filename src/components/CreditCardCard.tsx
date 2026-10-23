@@ -7,11 +7,13 @@ import { DeleteConfirmModal } from './modals/DeleteConfirmModal';
 interface CreditCardCardProps {
   card: CreditCard;
   onPayClick: (cardId: string) => void;
+  onViewFriendSwipes?: () => void;
 }
 
 export const CreditCardCard: React.FC<CreditCardCardProps> = ({
   card,
   onPayClick,
+  onViewFriendSwipes,
 }) => {
   const { formatMoney, currency, deleteCreditCard, markCardPaidEarly, friendLoans } = useFinance();
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -166,9 +168,20 @@ export const CreditCardCard: React.FC<CreditCardCardProps> = ({
                 <Users className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                 <span>Friends Borrowed:</span>
               </div>
-              <span className="font-mono font-bold tabular-nums">
-                {formatMoney(friendsLentOnThisCard)}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono font-bold tabular-nums">
+                  {formatMoney(friendsLentOnThisCard)}
+                </span>
+                {onViewFriendSwipes && (
+                  <button
+                    type="button"
+                    onClick={onViewFriendSwipes}
+                    className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 underline"
+                  >
+                    Manage
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>

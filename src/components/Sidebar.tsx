@@ -47,13 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'cards' as NavTab, 
       label: 'Credit Cards & Debt', 
       icon: CreditCard,
-      badge: urgentAlertsCount > 0 ? urgentAlertsCount : undefined 
-    },
-    { 
-      id: 'friends' as NavTab, 
-      label: 'Friends Using My Card', 
-      icon: Users,
-      badge: pendingFriendsCount > 0 ? pendingFriendsCount : undefined 
+      badge: urgentAlertsCount > 0 ? urgentAlertsCount : (pendingFriendsCount > 0 ? pendingFriendsCount : undefined) 
     },
     { id: 'transactions' as NavTab, label: 'Transactions', icon: ReceiptText },
   ];
@@ -101,33 +95,59 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <nav className="p-3 space-y-1">
             {navItems.map(item => {
               const Icon = item.icon;
-              const isActive = currentTab === item.id;
+              const isActive = currentTab === item.id || (item.id === 'cards' && currentTab === 'cards');
 
               return (
-                <button
-                  key={item.id}
-                  onClick={() => handleNavClick(item.id)}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
-                    isActive
-                      ? 'bg-slate-900 dark:bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400 dark:text-slate-400'}`} />
-                    <span>{item.label}</span>
-                  </div>
+                <React.Fragment key={item.id}>
+                  <button
+                    onClick={() => handleNavClick(item.id)}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
+                      isActive
+                        ? 'bg-slate-900 dark:bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400 dark:text-slate-400'}`} />
+                      <span>{item.label}</span>
+                    </div>
 
-                  {item.badge !== undefined && (
-                    <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-semibold ${
-                      isActive 
-                        ? 'bg-white/20 text-white' 
-                        : 'bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-400'
-                    }`}>
-                      {item.badge}
-                    </span>
+                    {item.badge !== undefined && (
+                      <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-semibold ${
+                        isActive 
+                          ? 'bg-white/20 text-white' 
+                          : urgentAlertsCount > 0
+                            ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-400'
+                            : 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-400'
+                      }`}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Sub-item under Cards for direct 1-click jump to Friend Swipes */}
+                  {item.id === 'cards' && (
+                    <button
+                      type="button"
+                      onClick={() => handleNavClick('friends')}
+                      className={`w-full flex items-center justify-between pl-8 pr-3.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                        currentTab === 'friends'
+                          ? 'text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50/70 dark:bg-indigo-950/40'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Users className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Friend Swipes</span>
+                      </div>
+                      {pendingFriendsCount > 0 && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded font-semibold bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-400">
+                          {pendingFriendsCount}
+                        </span>
+                      )}
+                    </button>
                   )}
-                </button>
+                </React.Fragment>
               );
             })}
           </nav>

@@ -19,23 +19,18 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ currentTab, on
       id: 'cards' as NavTab, 
       label: 'Cards', 
       icon: CreditCard,
-      badge: urgentAlertsCount > 0 ? urgentAlertsCount : undefined 
+      badge: urgentAlertsCount > 0 ? urgentAlertsCount : (pendingFriendsCount > 0 ? pendingFriendsCount : undefined),
+      badgeColor: urgentAlertsCount > 0 ? 'bg-rose-500' : 'bg-amber-500'
     },
-    { 
-      id: 'friends' as NavTab, 
-      label: 'Friends', 
-      icon: Users,
-      badge: pendingFriendsCount > 0 ? pendingFriendsCount : undefined 
-    },
-    { id: 'transactions' as NavTab, label: 'Ledger', icon: ReceiptText },
     { id: 'budgets' as NavTab, label: 'Budgets', icon: PieChart },
+    { id: 'transactions' as NavTab, label: 'Ledger', icon: ReceiptText },
   ];
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800 px-2 py-1 flex items-center justify-around shadow-lg transition-colors">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800 px-3 py-1 flex items-center justify-around shadow-lg transition-colors">
       {items.map(item => {
         const Icon = item.icon;
-        const isActive = currentTab === item.id;
+        const isActive = currentTab === item.id || (item.id === 'cards' && currentTab === 'friends');
 
         return (
           <button
@@ -50,7 +45,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ currentTab, on
             <div className="relative">
               <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.2]' : 'stroke-[1.8]'}`} />
               {item.badge !== undefined && (
-                <span className="absolute -top-1 -right-2 bg-rose-500 text-white font-mono text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                <span className={`absolute -top-1 -right-2 ${item.badgeColor || 'bg-rose-500'} text-white font-mono text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold`}>
                   {item.badge}
                 </span>
               )}

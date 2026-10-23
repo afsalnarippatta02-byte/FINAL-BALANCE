@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { X, Plus } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { X, Plus, Sparkles, Check } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import { getOffsetDate } from '../../data/initialData';
 import { TransactionType, TransactionStatus } from '../../types/finance';
+import { suggestCategoryFromDescription } from '../../utils/categorySuggester';
 
 interface AddTransactionModalProps {
   isOpen: boolean;
@@ -26,10 +27,32 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen
   });
   const [status, setStatus] = useState<TransactionStatus>('cleared');
   const [notes, setNotes] = useState('');
+  const [userManuallySelectedCategory, setUserManuallySelectedCategory] = useState(false);
+
+  // Automatic real-time category suggestion matching description/merchant keywords
+  const categorySuggestion = useMemo(() => {
+    return suggestCategoryFromDescription(merchant, categories);
+  }, [merchant, categories]);
+
+  const handleMerchantChange = (value: string) => {
+    setMerchant(value);
+    if (value.trim()) {
+      const suggestion = suggestCategoryFromDescription(value, categories);
+      if (suggestion && !userManuallySelectedCategory) {
+        setCategoryId(suggestion.category.id);
+      }
+    }
+  };
+
+  const handleCategoryChange = (newCatId: string) => {
+    setCategoryId(newCatId);
+    setUserManuallySelectedCategory(true);
+  };
 
   // Keep category and account synchronized whenever modal opens or categories change
   React.useEffect(() => {
     if (isOpen) {
+      setUserManuallySelectedCategory(false);
       if (categories.length > 0 && (!categoryId || !categories.some(c => c.id === categoryId))) {
         setCategoryId(categories[0].id);
       }
@@ -70,6 +93,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen
     setAmount('');
     setMerchant('');
     setNotes('');
+    setUserManuallySelectedCategory(false);
     onClose();
   };
 
@@ -157,15 +181,51 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Merchant / Payee *</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                Merchant / Description *
+              </label>
+              {categorySuggestion && (
+                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-indigo-500" />
+                  Auto-categorized
+                </span>
+              )}
+            </div>
             <input
               type="text"
               required
               value={merchant}
-              onChange={e => setMerchant(e.target.value)}
-              placeholder="e.g. Trader Joe's, Netflix, Shell"
+              onChange={e => handleMerchantChange(e.target.value)}
+              placeholder="e.g. Carrefour, Starbucks, Uber, DEWA, Netflix"
               className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
             />
+            {categorySuggestion && (
+              <div className="mt-1.5 flex items-center justify-between gap-2 p-2 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/60 text-xs">
+                <div className="flex items-center gap-1.5 truncate">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <span className="text-slate-600 dark:text-slate-300 text-[11px] truncate">
+                    Matched <span className="font-semibold text-slate-900 dark:text-white">"{categorySuggestion.matchedKeyword}"</span> &rarr; Suggested: <strong className="text-indigo-700 dark:text-indigo-300">{categorySuggestion.category.name}</strong>
+                  </span>
+                </div>
+                {categoryId !== categorySuggestion.category.id ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategoryId(categorySuggestion.category.id);
+                      setUserManuallySelectedCategory(false);
+                    }}
+                    className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0"
+                  >
+                    Apply
+                  </button>
+                ) : (
+                  <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 shrink-0 font-semibold">
+                    <Check className="w-3 h-3" /> Selected
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -173,7 +233,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
               <select
                 value={categoryId}
-                onChange={e => setCategoryId(e.target.value)}
+                onChange={e => handleCategoryChange(e.target.value)}
                 className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200"
               >
                 {categories.map(cat => (

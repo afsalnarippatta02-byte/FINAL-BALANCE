@@ -17,6 +17,7 @@ import {
   INITIAL_FRIEND_LOANS,
   getOffsetDate
 } from '../data/initialData';
+import { suggestCategoryFromDescription } from '../utils/categorySuggester';
 
 interface FinanceContextType {
   currency: CurrencyCode;
@@ -594,7 +595,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       let matchedCat = categories[0].id;
       if (categoryIdx !== -1 && cols[categoryIdx]) {
         const target = categories.find(c => c.name.toLowerCase().includes(cols[categoryIdx].toLowerCase()));
-        if (target) matchedCat = target.id;
+        if (target) {
+          matchedCat = target.id;
+        } else {
+          const autoSuggested = suggestCategoryFromDescription(cols[categoryIdx] + ' ' + merchant, categories);
+          if (autoSuggested) matchedCat = autoSuggested.category.id;
+        }
+      } else {
+        const autoSuggested = suggestCategoryFromDescription(merchant, categories);
+        if (autoSuggested) matchedCat = autoSuggested.category.id;
       }
 
       newItems.push({

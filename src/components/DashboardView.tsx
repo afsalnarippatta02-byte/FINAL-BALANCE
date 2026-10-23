@@ -107,86 +107,42 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* 1. Friends Credit Card Pass-Through Widget (Separate from personal expenses) */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 sm:p-5 shadow-xs transition-colors duration-200">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3.5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-              <Users className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white tracking-tight">
-                  Friends Using My Credit Card
-                </h3>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 font-medium">
-                  Separate Ledger
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Friends swiping your card. Affects your card available limit only — 100% excluded from your personal budget & expenses.
-              </p>
-            </div>
-          </div>
-
+      {/* Compact Friend Card Swipes Notice (Only shown when friends currently owe money) */}
+      {totalFriendsLentOutstanding > 0 && (
+        <div className="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 rounded-xl px-4 py-2.5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-amber-900 dark:text-amber-200">
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsAddFriendLoanOpen(true)}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-indigo-600 text-white hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors flex items-center gap-1.5 shadow-xs"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Record Friend Swipe</span>
-            </button>
-            <button
-              onClick={() => onNavigateTab('friends')}
-              className="text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center gap-1 group transition-colors px-2 py-1.5"
-            >
-              <span>View Ledger</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          </div>
-        </div>
-
-        {totalFriendsLentOutstanding > 0 ? (
-          <div className="p-3.5 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/60 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div>
-              <span className="text-[11px] font-medium text-amber-800 dark:text-amber-300 block">
-                Total Currently Lent to Friends (Outstanding)
+            <div className="w-6 h-6 rounded-md bg-amber-100 dark:bg-amber-900/80 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+              <Users className="w-3.5 h-3.5" />
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-amber-950 dark:text-amber-100">
+                Friends owe {formatMoney(totalFriendsLentOutstanding)} on your credit cards
               </span>
-              <span className="font-mono text-base sm:text-lg font-bold text-amber-950 dark:text-amber-200 tabular-nums">
-                {formatMoney(totalFriendsLentOutstanding)}
-              </span>
-              <span className="text-[11px] text-amber-700/80 dark:text-amber-400/80 block mt-0.5">
-                {pendingFriendLoans.length} active friend loan{pendingFriendLoans.length > 1 ? 's' : ''} awaiting return
+              <span className="text-[11px] text-amber-700/80 dark:text-amber-400/80">
+                ({pendingFriendLoans.length} swipe{pendingFriendLoans.length === 1 ? '' : 's'})
               </span>
             </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {pendingFriendLoans.slice(0, 3).map(l => (
-                <div key={l.id} className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-[11px] flex items-center gap-1.5">
-                  <span className="font-semibold text-slate-900 dark:text-white">{l.friendName}:</span>
-                  <span className="font-mono text-amber-700 dark:text-amber-300 font-medium">{formatMoney(l.amount)}</span>
-                </div>
-              ))}
-              {pendingFriendLoans.length > 3 && (
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                  +{pendingFriendLoans.length - 3} more
-                </span>
-              )}
-            </div>
           </div>
-        ) : (
-          <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-            <span>No pending friend card loans. All swiped amounts have been settled.</span>
+
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
             <button
+              type="button"
               onClick={() => setIsAddFriendLoanOpen(true)}
-              className="text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:underline"
+              className="px-2.5 py-1 text-[11px] font-medium rounded-lg bg-white dark:bg-slate-900 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800 hover:bg-amber-100/50 transition-colors"
             >
               + Record Swipe
             </button>
+            <button
+              type="button"
+              onClick={() => onNavigateTab('cards')}
+              className="px-3 py-1 text-[11px] font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-500 transition-colors flex items-center gap-1 shadow-2xs"
+            >
+              <span>Manage in Cards</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* 1. Real-Time Debt Payoff & Due Date Alerts Banner */}
       <DebtAlertBanner

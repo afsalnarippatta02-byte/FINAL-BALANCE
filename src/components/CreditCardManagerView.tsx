@@ -8,22 +8,38 @@ import {
   ArrowUpRight,
   TrendingDown,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  Users
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { CreditCardCard } from './CreditCardCard';
 import { CreditCard } from '../types/finance';
+import { FriendsCreditView } from './FriendsCreditView';
+import { AddFriendLoanModal } from './modals/AddFriendLoanModal';
 
 interface CreditCardManagerViewProps {
   onPayCard: (cardId: string) => void;
   onOpenAddCard: () => void;
+  initialSubTab?: 'cards' | 'friends';
 }
 
 export const CreditCardManagerView: React.FC<CreditCardManagerViewProps> = ({
   onPayCard,
   onOpenAddCard,
+  initialSubTab = 'cards',
 }) => {
-  const { cards, alerts, formatMoney, currencySymbol } = useFinance();
+  const { cards, alerts, formatMoney, currencySymbol, friendLoans } = useFinance();
+  const [subTab, setSubTab] = useState<'cards' | 'friends'>(initialSubTab);
+  const [isAddFriendSwipeOpen, setIsAddFriendSwipeOpen] = useState(false);
+
+  const pendingFriendsCount = friendLoans.filter(l => l.status === 'pending').length;
+
+  // Sync subTab if initialSubTab prop changes
+  React.useEffect(() => {
+    if (initialSubTab) {
+      setSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
 
   // Debt Payoff Simulator state
   const totalDebt = useMemo(() => {
@@ -96,28 +112,76 @@ export const CreditCardManagerView: React.FC<CreditCardManagerViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-5 sm:p-6 shadow-xs transition-colors duration-200">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
-              Credit Cards & Debt Management
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Live statement balances, payment due date countdowns, and repayment projections
-            </p>
-          </div>
+      {/* Top Segmented Sub-Tab Switcher: My Cards & Debt vs Friend Swipes */}
+      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl max-w-sm sm:max-w-md w-full border border-slate-200/60 dark:border-slate-700/60">
+        <button
+          type="button"
+          onClick={() => setSubTab('cards')}
+          className={`flex-1 py-2 px-3 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 transition-all ${
+            subTab === 'cards'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <CardIcon className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+          <span>My Cards & Debt</span>
+        </button>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onOpenAddCard}
-              className="px-3.5 py-2 text-xs font-medium text-white bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs whitespace-nowrap"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Credit Card</span>
-            </button>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => setSubTab('friends')}
+          className={`flex-1 py-2 px-3 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 transition-all relative ${
+            subTab === 'friends'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <Users className="w-3.5 h-3.5 text-amber-500" />
+          <span>Friend Swipes</span>
+          {pendingFriendsCount > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white font-mono text-[10px] font-bold">
+              {pendingFriendsCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {subTab === 'friends' ? (
+        <FriendsCreditView isEmbedded />
+      ) : (
+        <>
+          {/* Top Banner */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-5 sm:p-6 shadow-xs transition-colors duration-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
+                  Credit Cards & Debt Management
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Live statement balances, payment due date countdowns, and repayment projections
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddFriendSwipeOpen(true)}
+                  className="px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                  title="Record a friend's swipe on one of your credit cards"
+                >
+                  <Users className="w-3.5 h-3.5 text-amber-500" />
+                  <span>+ Friend Swipe</span>
+                </button>
+
+                <button
+                  onClick={onOpenAddCard}
+                  className="px-3.5 py-2 text-xs font-medium text-white bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs whitespace-nowrap"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Credit Card</span>
+                </button>
+              </div>
+            </div>
 
         {/* High-level Debt & Utilization Strip */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
@@ -179,6 +243,7 @@ export const CreditCardManagerView: React.FC<CreditCardManagerViewProps> = ({
                 key={card.id}
                 card={card}
                 onPayClick={(id) => onPayCard(id)}
+                onViewFriendSwipes={() => setSubTab('friends')}
               />
             ))}
           </div>
@@ -286,6 +351,14 @@ export const CreditCardManagerView: React.FC<CreditCardManagerViewProps> = ({
           </div>
         </div>
       </div>
+    </>
+  )}
+
+      {/* Quick Add Friend Swipe Modal */}
+      <AddFriendLoanModal
+        isOpen={isAddFriendSwipeOpen}
+        onClose={() => setIsAddFriendSwipeOpen(false)}
+      />
     </div>
   );
 };

@@ -13,7 +13,6 @@ import { DashboardView } from './components/DashboardView';
 import { BudgetManagerView } from './components/BudgetManagerView';
 import { CreditCardManagerView } from './components/CreditCardManagerView';
 import { TransactionLedgerView } from './components/TransactionLedgerView';
-import { FriendsCreditView } from './components/FriendsCreditView';
 import { PaymentModal } from './components/modals/PaymentModal';
 import { AddCardModal } from './components/modals/AddCardModal';
 import { AddTransactionModal } from './components/modals/AddTransactionModal';
@@ -79,10 +78,11 @@ function AppContent() {
             <BudgetManagerView />
           )}
 
-          {currentTab === 'cards' && (
+          {(currentTab === 'cards' || currentTab === 'friends') && (
             <CreditCardManagerView
               onPayCard={(cardId) => handleOpenPayment(cardId)}
               onOpenAddCard={() => setIsAddCardOpen(true)}
+              initialSubTab={currentTab === 'friends' ? 'friends' : 'cards'}
             />
           )}
 
@@ -91,10 +91,6 @@ function AppContent() {
               onOpenAddTransaction={() => setIsAddTxOpen(true)}
               onOpenImportCSV={() => setIsImportCSVOpen(true)}
             />
-          )}
-
-          {currentTab === 'friends' && (
-            <FriendsCreditView />
           )}
         </main>
       </div>

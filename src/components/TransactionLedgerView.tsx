@@ -160,18 +160,19 @@ export const TransactionLedgerView: React.FC<TransactionLedgerViewProps> = ({
   // Filtered & Sorted Transactions (Instant automatic computation)
   const filteredTransactions = useMemo(() => {
     return transactions.filter(tx => {
-      // 1. Keyword search (matches merchant, notes, amount, category name, or account name)
+      // 1. Real-time Search: matches description (merchant / notes) OR category name
       if (searchTerm.trim()) {
         const q = searchTerm.toLowerCase().trim();
         const cat = getCategory(tx.categoryId);
         const accLabel = getAccountLabel(tx.accountId);
         const matchesMerchant = tx.merchant.toLowerCase().includes(q);
-        const matchesNotes = tx.notes?.toLowerCase().includes(q);
+        const matchesNotes = tx.notes ? tx.notes.toLowerCase().includes(q) : false;
+        const matchesDescription = matchesMerchant || matchesNotes;
+        const matchesCategory = cat ? cat.name.toLowerCase().includes(q) : false;
         const matchesAmount = tx.amount.toString().includes(q);
-        const matchesCat = cat?.name.toLowerCase().includes(q);
         const matchesAcc = accLabel.toLowerCase().includes(q);
 
-        if (!matchesMerchant && !matchesNotes && !matchesAmount && !matchesCat && !matchesAcc) {
+        if (!matchesDescription && !matchesCategory && !matchesAmount && !matchesAcc) {
           return false;
         }
       }
@@ -315,26 +316,33 @@ export const TransactionLedgerView: React.FC<TransactionLedgerViewProps> = ({
       <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-3.5 sm:p-5 shadow-xs transition-colors duration-200 space-y-3.5">
         {/* Primary Row: Keyword Search + Quick Date Preset + Filter Toggle */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2.5">
-          {/* Keyword Search Input */}
+          {/* Keyword & Category Search Input */}
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search keyword (merchant, note, amount, category, account)..."
+              aria-label="Search transactions by description or category in real-time"
+              placeholder="Search by description or category in real-time..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 text-xs border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 bg-slate-50/50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400"
+              className="w-full pl-9 pr-24 py-2 text-xs border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 bg-slate-50/50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400"
             />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full"
-                title="Clear search text"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+            {searchTerm.trim() ? (
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 font-semibold px-1.5 py-0.5 rounded border border-indigo-200/50 dark:border-indigo-800/50 whitespace-nowrap">
+                  {filteredTransactions.length} {filteredTransactions.length === 1 ? 'match' : 'matches'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full"
+                  title="Clear search text"
+                  aria-label="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : null}
           </div>
 
           {/* Quick Date Presets Dropdown */}
@@ -380,6 +388,40 @@ export const TransactionLedgerView: React.FC<TransactionLedgerViewProps> = ({
               )}
             </button>
           </div>
+        </div>
+
+        {/* Quick Category Real-Time Filter Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs scrollbar-none pt-0.5">
+          <span className="shrink-0 text-[10px] uppercase font-semibold text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-1 mr-1">
+            <Tag className="w-3 h-3" /> Quick Filter:
+          </span>
+          {categories.slice(0, 7).map(cat => {
+            const isMatch = searchTerm.trim().toLowerCase() === cat.name.toLowerCase();
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSearchTerm(isMatch ? '' : cat.name)}
+                className={`shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all border ${
+                  isMatch
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200/60 dark:border-slate-700/60'
+                }`}
+                title={`Filter in real-time by category: ${cat.name}`}
+              >
+                {cat.name}
+              </button>
+            );
+          })}
+          {searchTerm.trim() && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="shrink-0 text-[11px] text-rose-500 hover:text-rose-600 dark:text-rose-400 font-medium underline ml-1"
+            >
+              Clear
+            </button>
+          )}
         </div>
 
         {/* Date Range Inputs (Visible when Custom is picked or when Advanced is toggled) */}
@@ -646,8 +688,27 @@ export const TransactionLedgerView: React.FC<TransactionLedgerViewProps> = ({
             </button>
           </div>
         ) : filteredTransactions.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-8 text-center text-slate-400 dark:text-slate-500 text-xs">
-            No transactions match the selected keyword, date, or category filters.
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-6 text-center text-xs space-y-2.5">
+            <p className="text-slate-600 dark:text-slate-300 font-medium">
+              {searchTerm.trim()
+                ? `No transactions matching "${searchTerm.trim()}" in description or category`
+                : 'No transactions match the selected filters.'}
+            </p>
+            <p className="text-slate-400 dark:text-slate-500 text-[11px]">
+              {searchTerm.trim()
+                ? 'Check your spelling or try searching another keyword.'
+                : 'Try adjusting your date range, category, or account filters.'}
+            </p>
+            {searchTerm.trim() && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors border border-indigo-200/50 dark:border-indigo-800/50"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Clear Search</span>
+              </button>
+            )}
           </div>
         ) : (
           filteredTransactions.map(tx => {
@@ -784,7 +845,28 @@ export const TransactionLedgerView: React.FC<TransactionLedgerViewProps> = ({
               ) : filteredTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-slate-400 dark:text-slate-500">
-                    No transactions found matching your search or filters.
+                    <div className="max-w-md mx-auto space-y-2">
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        {searchTerm.trim()
+                          ? `No transactions matching "${searchTerm.trim()}" found`
+                          : 'No transactions found matching your filters'}
+                      </p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">
+                        {searchTerm.trim()
+                          ? 'Try searching by another description, merchant name, or category.'
+                          : 'Try adjusting your date range, category, or account filters.'}
+                      </p>
+                      {searchTerm.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchTerm('')}
+                          className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors border border-indigo-200/50 dark:border-indigo-800/50"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          <span>Clear Search</span>
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
