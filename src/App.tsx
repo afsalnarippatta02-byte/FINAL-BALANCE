@@ -13,11 +13,12 @@ import { DashboardView } from './components/DashboardView';
 import { BudgetManagerView } from './components/BudgetManagerView';
 import { CreditCardManagerView } from './components/CreditCardManagerView';
 import { TransactionLedgerView } from './components/TransactionLedgerView';
-import { SyncEngineView } from './components/SyncEngineView';
+import { FriendsCreditView } from './components/FriendsCreditView';
 import { PaymentModal } from './components/modals/PaymentModal';
 import { AddCardModal } from './components/modals/AddCardModal';
 import { AddTransactionModal } from './components/modals/AddTransactionModal';
 import { ImportCSVModal } from './components/modals/ImportCSVModal';
+import { SettingsModal } from './components/modals/SettingsModal';
 
 import { useFinance } from './context/FinanceContext';
 
@@ -31,6 +32,7 @@ function AppContent() {
   const [isAddCardOpen, setIsAddCardOpen] = useState(false);
   const [isAddTxOpen, setIsAddTxOpen] = useState(false);
   const [isImportCSVOpen, setIsImportCSVOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const handleOpenPayment = (cardId?: string) => {
     if (cardId) {
@@ -50,6 +52,7 @@ function AppContent() {
         onSelectTab={(tab) => setCurrentTab(tab)}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {/* 2. Main Content Viewport */}
@@ -58,7 +61,8 @@ function AppContent() {
         <TopHeader
           onOpenMobileMenu={() => setIsMobileSidebarOpen(true)}
           onOpenAddTransaction={() => setIsAddTxOpen(true)}
-          onOpenPaymentModal={() => handleOpenPayment()}
+          onOpenPaymentModal={(cardId) => handleOpenPayment(cardId)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
         />
 
         {/* View Content Area */}
@@ -89,10 +93,8 @@ function AppContent() {
             />
           )}
 
-          {currentTab === 'sync' && (
-            <SyncEngineView
-              onOpenImportCSV={() => setIsImportCSVOpen(true)}
-            />
+          {currentTab === 'friends' && (
+            <FriendsCreditView />
           )}
         </main>
       </div>
@@ -122,6 +124,11 @@ function AppContent() {
       <ImportCSVModal
         isOpen={isImportCSVOpen}
         onClose={() => setIsImportCSVOpen(false)}
+      />
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
     </div>
   );

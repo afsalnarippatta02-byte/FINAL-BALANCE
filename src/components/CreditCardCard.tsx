@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCard as CardIcon, RefreshCw, AlertCircle, ArrowUpRight, Check, Trash2, CheckCircle2 } from 'lucide-react';
+import { CreditCard as CardIcon, AlertCircle, ArrowUpRight, Check, Trash2, CheckCircle2, Users } from 'lucide-react';
 import { CreditCard } from '../types/finance';
 import { useFinance } from '../context/FinanceContext';
 import { DeleteConfirmModal } from './modals/DeleteConfirmModal';
@@ -7,20 +7,20 @@ import { DeleteConfirmModal } from './modals/DeleteConfirmModal';
 interface CreditCardCardProps {
   card: CreditCard;
   onPayClick: (cardId: string) => void;
-  onSyncClick: (cardId: string) => void;
-  isSyncing?: boolean;
 }
 
 export const CreditCardCard: React.FC<CreditCardCardProps> = ({
   card,
   onPayClick,
-  onSyncClick,
-  isSyncing = false,
 }) => {
-  const { formatMoney, currency, deleteCreditCard, markCardPaidEarly } = useFinance();
+  const { formatMoney, currency, deleteCreditCard, markCardPaidEarly, friendLoans } = useFinance();
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const utilPercent = card.creditLimit > 0 ? (card.currentBalance / card.creditLimit) * 100 : 0;
   const availableCredit = Math.max(0, card.creditLimit - card.currentBalance);
+
+  const friendsLentOnThisCard = friendLoans
+    .filter(l => l.cardId === card.id && l.status === 'pending')
+    .reduce((s, l) => s + l.amount, 0);
 
   // Compute payment date remainder
   const today = new Date();
@@ -158,6 +158,19 @@ export const CreditCardCard: React.FC<CreditCardCardProps> = ({
               {formatMoney(availableCredit)}
             </span>
           </div>
+
+          {/* Friends Swiped Balance Info */}
+          {friendsLentOnThisCard > 0 && (
+            <div className="flex items-center justify-between text-[11px] p-2 bg-amber-50/80 dark:bg-amber-950/50 rounded-lg border border-amber-200/60 dark:border-amber-900/40 text-amber-900 dark:text-amber-300">
+              <div className="flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>Friends Borrowed:</span>
+              </div>
+              <span className="font-mono font-bold tabular-nums">
+                {formatMoney(friendsLentOnThisCard)}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -169,16 +182,6 @@ export const CreditCardCard: React.FC<CreditCardCardProps> = ({
         >
           <span>Pay Balance</span>
           <ArrowUpRight className="w-3.5 h-3.5" />
-        </button>
-
-        <button
-          onClick={() => onSyncClick(card.id)}
-          disabled={isSyncing}
-          className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
-          title="Sync card feed"
-          aria-label="Sync card feed"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-indigo-600 dark:text-indigo-400' : ''}`} />
         </button>
 
         {/* Functional Delete Card Button */}

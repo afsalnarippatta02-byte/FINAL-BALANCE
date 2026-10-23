@@ -51,6 +51,15 @@ export interface DebtAlert {
   daysRemaining?: number;
 }
 
+export interface DueDateAlert {
+  card: CreditCard;
+  daysRemaining: number;
+  dueDate: string;
+  amountDue: number;
+  isUrgent: boolean;
+  badgeLabel: string;
+}
+
 export interface SyncRecord {
   id: string;
   timestamp: string;
@@ -58,4 +67,20 @@ export interface SyncRecord {
   transactionsImported: number;
   totalAmount: number;
   status: 'completed' | 'failed';
+}
+
+export type FriendLoanStatus = 'pending' | 'returned';
+
+export interface FriendLoan {
+  id: string;
+  friendName: string;
+  cardId: string; // CreditCard.id used for the friend's charge
+  amount: number;
+  swipeDate: string; // YYYY-MM-DD
+  expectedReturnDate: string; // YYYY-MM-DD
+  actualReturnDate?: string; // YYYY-MM-DD
+  status: FriendLoanStatus;
+  purpose: string; // e.g. "Flight Ticket", "iPhone purchase", "Emergency shopping"
+  notes?: string;
+  repaymentMethod?: 'direct_to_card' | 'cash_or_bank_transfer';
 }

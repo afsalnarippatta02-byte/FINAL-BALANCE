@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, PieChart, CreditCard, ReceiptText, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, PieChart, CreditCard, ReceiptText, Users } from 'lucide-react';
 import { NavTab } from './Sidebar';
 import { useFinance } from '../context/FinanceContext';
 
@@ -9,20 +9,26 @@ interface MobileBottomNavProps {
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ currentTab, onSelectTab }) => {
-  const { alerts } = useFinance();
+  const { alerts, friendLoans } = useFinance();
   const urgentAlertsCount = alerts.filter(a => a.severity === 'critical' || a.type === 'due_soon').length;
+  const pendingFriendsCount = friendLoans.filter(l => l.status === 'pending').length;
 
   const items = [
     { id: 'dashboard' as NavTab, label: 'Overview', icon: LayoutDashboard },
-    { id: 'budgets' as NavTab, label: 'Budgets', icon: PieChart },
     { 
       id: 'cards' as NavTab, 
       label: 'Cards', 
       icon: CreditCard,
       badge: urgentAlertsCount > 0 ? urgentAlertsCount : undefined 
     },
+    { 
+      id: 'friends' as NavTab, 
+      label: 'Friends', 
+      icon: Users,
+      badge: pendingFriendsCount > 0 ? pendingFriendsCount : undefined 
+    },
     { id: 'transactions' as NavTab, label: 'Ledger', icon: ReceiptText },
-    { id: 'sync' as NavTab, label: 'Sync', icon: RefreshCw },
+    { id: 'budgets' as NavTab, label: 'Budgets', icon: PieChart },
   ];
 
   return (

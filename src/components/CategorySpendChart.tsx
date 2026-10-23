@@ -59,20 +59,29 @@ const CustomTooltip: React.FC<CustomTooltipProps & { currencySymbol: string; for
 };
 
 export const CategorySpendChart: React.FC = () => {
-  const { categories, transactions, formatMoney, currencySymbol } = useFinance();
+  const { categories, transactions, formatMoney, currencySymbol, currency } = useFinance();
   const { isDark } = useTheme();
   const [metricMode, setMetricMode] = useState<'actual' | 'comparison'>('comparison');
+  const [timeScope, setTimeScope] = useState<'this-month' | 'all-time'>('this-month');
 
   const now = new Date();
   const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   const chartData = useMemo(() => {
-    // Tally current month expenses by category
     const catSpendMap: Record<string, number> = {};
-    transactions.forEach(tx => {
-      if (tx.type === 'expense' && tx.date.startsWith(currentMonthPrefix)) {
-        catSpendMap[tx.categoryId] = (catSpendMap[tx.categoryId] || 0) + tx.amount;
-      }
+    const allExpenses = transactions.filter(tx => tx.type === 'expense');
+    const thisMonthExpenses = allExpenses.filter(tx => tx.date.startsWith(currentMonthPrefix));
+
+    // If "this-month" has no expenses but user has recorded expenses, fallback to all expenses so the chart reflects data immediately
+    const effectiveList = (timeScope === 'this-month' && thisMonthExpenses.length > 0)
+      ? thisMonthExpenses
+      : allExpenses;
+
+    effectiveList.forEach(tx => {
+      const targetCatId = categories.some(c => c.id === tx.categoryId)
+        ? tx.categoryId
+        : (categories[0]?.id ?? 'cat-housing');
+      catSpendMap[targetCatId] = (catSpendMap[targetCatId] || 0) + tx.amount;
     });
 
     return categories.map(cat => {
@@ -89,7 +98,7 @@ export const CategorySpendChart: React.FC = () => {
         isOver,
       };
     }).sort((a, b) => b.spent - a.spent);
-  }, [categories, transactions, currentMonthPrefix]);
+  }, [categories, transactions, currentMonthPrefix, timeScope]);
 
   const totalMonthlySpent = useMemo(() => {
     return chartData.reduce((acc, curr) => acc + curr.spent, 0);
@@ -109,10 +118,10 @@ export const CategorySpendChart: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-base font-semibold text-slate-900 dark:text-white tracking-tight">
-              Monthly Spending Distribution by Category
+              Spending Distribution vs Budget
             </h3>
             <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-              ({now.toLocaleString('default', { month: 'long', year: 'numeric' })})
+              ({timeScope === 'this-month' ? now.toLocaleString('default', { month: 'long', year: 'numeric' }) : 'All Recorded'})
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -121,33 +130,58 @@ export const CategorySpendChart: React.FC = () => {
         </div>
 
         {/* Segmented filter controls */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg self-start sm:self-auto">
-          <button
-            onClick={() => setMetricMode('comparison')}
-            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
-              metricMode === 'comparison'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            Spent vs Budget
-          </button>
-          <button
-            onClick={() => setMetricMode('actual')}
-            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
-              metricMode === 'actual'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            Spending Only
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <button
+              onClick={() => setTimeScope('this-month')}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                timeScope === 'this-month'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              This Month
+            </button>
+            <button
+              onClick={() => setTimeScope('all-time')}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                timeScope === 'all-time'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              All Spends
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <button
+              onClick={() => setMetricMode('comparison')}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                metricMode === 'comparison'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Spent vs Budget
+            </button>
+            <button
+              onClick={() => setMetricMode('actual')}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                metricMode === 'actual'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Spending Only
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Chart container */}
       <div className="h-[280px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer key={currency} width="100%" height="100%">
           <BarChart
             data={chartData}
             margin={{ top: 10, right: 10, left: -10, bottom: 20 }}
@@ -169,7 +203,12 @@ export const CategorySpendChart: React.FC = () => {
               fontSize={11}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v) => `${currencySymbol} ${v}`}
+              tickFormatter={(v) => {
+                if (v === 0) return `${currencySymbol}0`;
+                if (v >= 1000000) return `${currencySymbol}${(v / 1000000).toFixed(1)}M`;
+                if (v >= 1000) return `${currencySymbol}${(v / 1000).toFixed(0)}k`;
+                return `${currencySymbol}${v}`;
+              }}
             />
             <Tooltip 
               content={<CustomTooltip currencySymbol={currencySymbol} formatMoney={formatMoney} />} 

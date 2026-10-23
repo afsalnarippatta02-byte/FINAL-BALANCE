@@ -3,13 +3,16 @@ import {
   CreditCard, 
   ArrowRight, 
   ReceiptText, 
-  Sparkles, 
   TrendingDown, 
   Calendar,
-  Search,
+  Search, 
   ExternalLink,
   Trash2,
-  CheckCircle2
+  Edit3,
+  CheckCircle2,
+  Users,
+  Plus,
+  Sliders
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { CategorySpendChart } from './CategorySpendChart';
@@ -18,6 +21,11 @@ import { CreditCardCard } from './CreditCardCard';
 import { BudgetProgressBar } from './BudgetProgressBar';
 import { NavTab } from './Sidebar';
 import { DeleteConfirmModal, DeleteTarget } from './modals/DeleteConfirmModal';
+import { AddFriendLoanModal } from './modals/AddFriendLoanModal';
+import { EditTransactionModal } from './modals/EditTransactionModal';
+import { BudgetEditModal } from './modals/BudgetEditModal';
+import { CustomizeBudgetsModal } from './modals/CustomizeBudgetsModal';
+import { Transaction, BudgetCategory } from '../types/finance';
 
 interface DashboardViewProps {
   onNavigateTab: (tab: NavTab) => void;
@@ -30,11 +38,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onPayCard,
   onOpenAddTransaction,
 }) => {
-  const { cards, transactions, categories, triggerManualSync, isSyncing, formatMoney, deleteTransaction } = useFinance();
+  const { 
+    cards, 
+    transactions, 
+    categories, 
+    formatMoney, 
+    deleteTransaction,
+    friendLoans,
+    totalFriendsLentOutstanding
+  } = useFinance();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [editTarget, setEditTarget] = useState<Transaction | null>(null);
+  const [selectedCategoryForBudgetEdit, setSelectedCategoryForBudgetEdit] = useState<BudgetCategory | null>(null);
+  const [isCustomizeBudgetsOpen, setIsCustomizeBudgetsOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isAddFriendLoanOpen, setIsAddFriendLoanOpen] = useState(false);
+
+  const pendingFriendLoans = useMemo(() => {
+    return friendLoans.filter(l => l.status === 'pending');
+  }, [friendLoans]);
 
   const recentTransactions = useMemo(() => {
     return transactions
@@ -65,10 +89,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const categoryConsumption = React.useMemo(() => {
     const spendMap: Record<string, number> = {};
-    transactions.forEach(tx => {
-      if (tx.type === 'expense' && tx.date.startsWith(currentMonthPrefix)) {
-        spendMap[tx.categoryId] = (spendMap[tx.categoryId] || 0) + tx.amount;
-      }
+    const currentMonthExpenses = transactions.filter(tx => tx.type === 'expense' && tx.date.startsWith(currentMonthPrefix));
+    // If user enters an expense with different date format or outside current month, fallback to all expenses
+    const effectiveExpenses = currentMonthExpenses.length > 0 
+      ? currentMonthExpenses 
+      : transactions.filter(tx => tx.type === 'expense');
+
+    effectiveExpenses.forEach(tx => {
+      spendMap[tx.categoryId] = (spendMap[tx.categoryId] || 0) + tx.amount;
     });
 
     return categories.map(cat => ({
@@ -79,6 +107,87 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* 1. Friends Credit Card Pass-Through Widget (Separate from personal expenses) */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 sm:p-5 shadow-xs transition-colors duration-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3.5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <Users className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white tracking-tight">
+                  Friends Using My Credit Card
+                </h3>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 font-medium">
+                  Separate Ledger
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Friends swiping your card. Affects your card available limit only — 100% excluded from your personal budget & expenses.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsAddFriendLoanOpen(true)}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-indigo-600 text-white hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors flex items-center gap-1.5 shadow-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Record Friend Swipe</span>
+            </button>
+            <button
+              onClick={() => onNavigateTab('friends')}
+              className="text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center gap-1 group transition-colors px-2 py-1.5"
+            >
+              <span>View Ledger</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        </div>
+
+        {totalFriendsLentOutstanding > 0 ? (
+          <div className="p-3.5 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/60 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div>
+              <span className="text-[11px] font-medium text-amber-800 dark:text-amber-300 block">
+                Total Currently Lent to Friends (Outstanding)
+              </span>
+              <span className="font-mono text-base sm:text-lg font-bold text-amber-950 dark:text-amber-200 tabular-nums">
+                {formatMoney(totalFriendsLentOutstanding)}
+              </span>
+              <span className="text-[11px] text-amber-700/80 dark:text-amber-400/80 block mt-0.5">
+                {pendingFriendLoans.length} active friend loan{pendingFriendLoans.length > 1 ? 's' : ''} awaiting return
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {pendingFriendLoans.slice(0, 3).map(l => (
+                <div key={l.id} className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-[11px] flex items-center gap-1.5">
+                  <span className="font-semibold text-slate-900 dark:text-white">{l.friendName}:</span>
+                  <span className="font-mono text-amber-700 dark:text-amber-300 font-medium">{formatMoney(l.amount)}</span>
+                </div>
+              ))}
+              {pendingFriendLoans.length > 3 && (
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                  +{pendingFriendLoans.length - 3} more
+                </span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span>No pending friend card loans. All swiped amounts have been settled.</span>
+            <button
+              onClick={() => setIsAddFriendLoanOpen(true)}
+              className="text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:underline"
+            >
+              + Record Swipe
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* 1. Real-Time Debt Payoff & Due Date Alerts Banner */}
       <DebtAlertBanner
         onSelectCardForPayment={(cardId) => onPayCard(cardId)}
@@ -90,22 +199,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* 2b. Visual Budget Category Consumption Progress Bars */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-5 shadow-xs transition-colors duration-200">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
             <h3 className="text-base font-semibold text-slate-900 dark:text-white tracking-tight">
               Monthly Budget Category Consumption
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Visual progress bars indicating consumed spending vs monthly ceiling for each category
+              Visual progress bars indicating consumed spending vs monthly ceiling. Click amounts to customise.
             </p>
           </div>
-          <button
-            onClick={() => onNavigateTab('budgets')}
-            className="text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center gap-1 group transition-colors"
-          >
-            <span>Adjust Budgets</span>
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsCustomizeBudgetsOpen(true)}
+              className="px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs"
+              title="Customise category budget targets"
+            >
+              <Sliders className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Customise Budgets</span>
+            </button>
+            <button
+              onClick={() => onNavigateTab('budgets')}
+              className="text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center gap-1 group transition-colors"
+            >
+              <span>Manage</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3.5">
@@ -115,6 +234,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 category={category}
                 spent={spent}
                 showDetails={true}
+                onEdit={(cat) => setSelectedCategoryForBudgetEdit(cat)}
                 size="md"
               />
             </div>
@@ -167,8 +287,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 key={card.id}
                 card={card}
                 onPayClick={(id) => onPayCard(id)}
-                onSyncClick={(id) => triggerManualSync(id)}
-                isSyncing={isSyncing}
               />
             ))}
           </div>
@@ -180,10 +298,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
             <h3 className="text-base font-semibold text-slate-900 dark:text-white tracking-tight">
-              Recent Transactions & Synced Charges
+              Recent Transactions
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Live automated feed from connected credit cards and bank ledgers
+              Personal expenses and payment records
             </p>
           </div>
 
@@ -237,20 +355,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </span>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        setDeleteTarget({
-                          type: 'transaction',
-                          id: tx.id,
-                          title: tx.merchant,
-                          details: `${tx.date} · ${formatMoney(tx.amount)} · ${cat?.name || 'Uncategorized'}`,
-                        });
-                      }}
-                      className="p-1 text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400"
-                      title="Delete transaction"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditTarget(tx)}
+                        className="p-1 text-slate-400 hover:text-indigo-600 dark:text-slate-500 dark:hover:text-indigo-400 rounded transition-colors"
+                        title="Edit transaction"
+                        aria-label={`Edit ${tx.merchant}`}
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDeleteTarget({
+                            type: 'transaction',
+                            id: tx.id,
+                            title: tx.merchant,
+                            details: `${tx.date} · ${formatMoney(tx.amount)} · ${cat?.name || 'Uncategorized'}`,
+                          });
+                        }}
+                        className="p-1 text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 rounded transition-colors"
+                        title="Delete transaction"
+                        aria-label={`Delete ${tx.merchant}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex items-baseline justify-between gap-2 mb-1">
@@ -293,7 +422,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <th className="py-2.5 px-3">Account Source</th>
                 <th className="py-2.5 px-3 text-center">Status</th>
                 <th className="py-2.5 px-3 text-right">Amount</th>
-                <th className="py-2.5 px-3 text-center w-10">Action</th>
+                <th className="py-2.5 px-3 text-center w-20">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-slate-700 dark:text-slate-300">
@@ -361,21 +490,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         </span>
                       </td>
                       <td className="py-3 px-3 text-center">
-                        <button
-                          onClick={() => {
-                            setDeleteTarget({
-                              type: 'transaction',
-                              id: tx.id,
-                              title: tx.merchant,
-                              details: `${tx.date} · ${formatMoney(tx.amount)} · ${cat?.name || 'Uncategorized'}`,
-                            });
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-md transition-colors"
-                          title="Delete transaction"
-                          aria-label={`Delete transaction from ${tx.merchant}`}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => setEditTarget(tx)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 dark:text-slate-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-md transition-colors"
+                            title="Edit transaction"
+                            aria-label={`Edit transaction from ${tx.merchant}`}
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setDeleteTarget({
+                                type: 'transaction',
+                                id: tx.id,
+                                title: tx.merchant,
+                                details: `${tx.date} · ${formatMoney(tx.amount)} · ${cat?.name || 'Uncategorized'}`,
+                              });
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-md transition-colors"
+                            title="Delete transaction"
+                            aria-label={`Delete transaction from ${tx.merchant}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -397,6 +536,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             setTimeout(() => setToastMessage(null), 3000);
           }
         }}
+      />
+
+      {/* Edit Recorded Transaction Modal */}
+      <EditTransactionModal
+        transaction={editTarget}
+        isOpen={!!editTarget}
+        onClose={() => setEditTarget(null)}
+      />
+
+      {/* Single Category Budget Edit Modal */}
+      {selectedCategoryForBudgetEdit && (
+        <BudgetEditModal
+          category={selectedCategoryForBudgetEdit}
+          onClose={() => setSelectedCategoryForBudgetEdit(null)}
+        />
+      )}
+
+      {/* Customize All Budgets Modal */}
+      <CustomizeBudgetsModal
+        isOpen={isCustomizeBudgetsOpen}
+        onClose={() => setIsCustomizeBudgetsOpen(false)}
+      />
+
+      {/* Add Friend Loan Modal */}
+      <AddFriendLoanModal
+        isOpen={isAddFriendLoanOpen}
+        onClose={() => setIsAddFriendLoanOpen(false)}
       />
 
       {/* Floating Success Toast */}

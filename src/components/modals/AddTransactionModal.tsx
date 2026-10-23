@@ -17,28 +17,59 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen
   const [merchant, setMerchant] = useState('');
   const [categoryId, setCategoryId] = useState(categories[0]?.id || '');
   const [accountId, setAccountId] = useState(cards[0]?.id || 'checking');
-  const [date, setDate] = useState(getOffsetDate(0));
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  });
   const [status, setStatus] = useState<TransactionStatus>('cleared');
   const [notes, setNotes] = useState('');
+
+  // Keep category and account synchronized whenever modal opens or categories change
+  React.useEffect(() => {
+    if (isOpen) {
+      if (categories.length > 0 && (!categoryId || !categories.some(c => c.id === categoryId))) {
+        setCategoryId(categories[0].id);
+      }
+      if (cards.length > 0 && accountId !== 'checking' && !cards.some(c => c.id === accountId)) {
+        setAccountId(cards[0].id);
+      }
+      if (!date) {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        setDate(`${y}-${m}-${day}`);
+      }
+    }
+  }, [isOpen, categories, cards]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const parsedAmount = parseFloat(amount);
-    if (!merchant || isNaN(parsedAmount) || parsedAmount <= 0) return;
+    const parsedAmount = Math.abs(parseFloat(amount));
+    if (!merchant.trim() || isNaN(parsedAmount) || parsedAmount <= 0) return;
+
+    const resolvedCategory = categoryId || (categories[0]?.id ?? 'cat-housing');
 
     addTransaction({
       amount: parsedAmount,
-      merchant,
-      categoryId,
-      accountId,
-      date,
+      merchant: merchant.trim(),
+      categoryId: resolvedCategory,
+      accountId: accountId || 'checking',
+      date: date || new Date().toISOString().split('T')[0],
       status,
       type,
       notes: notes.trim() || undefined,
     });
 
+    // Reset input fields
+    setAmount('');
+    setMerchant('');
+    setNotes('');
     onClose();
   };
 

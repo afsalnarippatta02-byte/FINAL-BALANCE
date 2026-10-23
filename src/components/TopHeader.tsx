@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react';
 import { 
   Menu, 
-  RefreshCw, 
   Plus, 
   CreditCard, 
   TrendingUp, 
   AlertCircle, 
   CheckCircle2,
-  Coins
+  Coins,
+  Settings
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { CurrencyCode } from '../types/finance';
@@ -15,13 +15,15 @@ import { CurrencyCode } from '../types/finance';
 interface TopHeaderProps {
   onOpenMobileMenu: () => void;
   onOpenAddTransaction: () => void;
-  onOpenPaymentModal: () => void;
+  onOpenPaymentModal: (cardId?: string) => void;
+  onOpenSettings?: () => void;
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
   onOpenMobileMenu,
   onOpenAddTransaction,
   onOpenPaymentModal,
+  onOpenSettings,
 }) => {
   const { 
     currency,
@@ -30,19 +32,26 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
     categories, 
     cards, 
     transactions, 
-    alerts, 
-    isSyncing, 
-    triggerManualSync 
+    alerts,
+    checkCreditCardDueDates
   } = useFinance();
+
+  // Helper check: Check credit card due dates within next 3 days
+  const dueSoonCards = useMemo(() => {
+    return checkCreditCardDueDates(3);
+  }, [checkCreditCardDueDates, cards]);
+
+  const hasDueSoon = dueSoonCards.length > 0;
+  const primaryDueSoon = dueSoonCards[0];
 
   const now = new Date();
   const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  // 1. Current Month Total Spend
+  // 1. Current Month Total Spend (linked with fallback so expenses always reflect immediately)
   const monthlySpent = useMemo(() => {
-    return transactions
-      .filter(tx => tx.type === 'expense' && tx.date.startsWith(currentMonthPrefix))
-      .reduce((sum, tx) => sum + tx.amount, 0);
+    const currentMonthExpenses = transactions.filter(tx => tx.type === 'expense' && tx.date.startsWith(currentMonthPrefix));
+    const effective = currentMonthExpenses.length > 0 ? currentMonthExpenses : transactions.filter(tx => tx.type === 'expense');
+    return effective.reduce((sum, tx) => sum + tx.amount, 0);
   }, [transactions, currentMonthPrefix]);
 
   // 2. Total Monthly Budget Ceiling
@@ -112,21 +121,35 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
           {/* Quick Actions on Mobile Header */}
           <div className="flex items-center gap-1.5 md:hidden">
-            <button
-              onClick={() => triggerManualSync()}
-              disabled={isSyncing}
-              className="p-1.5 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-lg"
-              title="Sync Feeds"
-            >
-              <RefreshCw className={`w-4 h-4 text-indigo-600 dark:text-indigo-400 ${isSyncing ? 'animate-spin' : ''}`} />
-            </button>
+            {hasDueSoon && (
+              <button
+                type="button"
+                onClick={() => onOpenPaymentModal(primaryDueSoon.card.id)}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/90 dark:text-rose-300 border border-rose-300 dark:border-rose-800 animate-pulse shadow-2xs"
+                title={`${primaryDueSoon.card.name} due soon`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                <span>Due Soon ({primaryDueSoon.badgeLabel})</span>
+              </button>
+            )}
+
             <button
               onClick={onOpenAddTransaction}
-              className="px-2.5 py-1.5 text-xs font-semibold text-white bg-slate-900 dark:bg-indigo-600 rounded-lg flex items-center gap-1"
+              className="px-2.5 py-1.5 text-xs font-semibold text-white bg-slate-900 dark:bg-indigo-600 rounded-lg flex items-center gap-1 shadow-xs"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Record</span>
             </button>
+            {onOpenSettings && (
+              <button
+                onClick={onOpenSettings}
+                className="p-1.5 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                title="Settings"
+                aria-label="Open settings"
+              >
+                <Settings className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -167,11 +190,32 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             </div>
           </div>
 
-          {/* Metric 4: Due Date Alert Status */}
-          <div className="px-2.5 py-1 bg-slate-50/80 dark:bg-slate-800/60 rounded-lg border border-slate-100 dark:border-slate-800">
-            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 block truncate">Payment Remainder</span>
+          {/* Metric 4: Due Date Alert Status with Due Soon notification */}
+          <div 
+            onClick={() => hasDueSoon ? onOpenPaymentModal(primaryDueSoon.card.id) : onOpenPaymentModal()}
+            className={`px-2.5 py-1 rounded-lg border transition-colors ${
+              hasDueSoon 
+                ? 'bg-rose-50/90 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800/80 cursor-pointer hover:bg-rose-100/90' 
+                : 'bg-slate-50/80 dark:bg-slate-800/60 border-slate-100 dark:border-slate-800'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 block truncate">Payment Remainder</span>
+              {hasDueSoon && (
+                <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider font-mono">
+                  Due Soon
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-1.5 mt-0.5">
-              {urgentAlert ? (
+              {hasDueSoon ? (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 animate-ping" />
+                  <span className="text-[10px] font-bold text-rose-700 dark:text-rose-300 truncate">
+                    {primaryDueSoon.card.name} ({primaryDueSoon.badgeLabel})
+                  </span>
+                </>
+              ) : urgentAlert ? (
                 <>
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
                   <span className="text-[10px] font-semibold text-rose-700 dark:text-rose-400 truncate max-w-[100px]">
@@ -192,18 +236,25 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
         {/* Right Desktop Actions */}
         <div className="hidden md:flex items-center gap-2 shrink-0">
-          <button
-            onClick={() => triggerManualSync()}
-            disabled={isSyncing}
-            className="px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-50"
-            title="Fetch simulated card charges"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span>{isSyncing ? 'Syncing...' : 'Sync'}</span>
-          </button>
+          {/* Prominent Due Soon Alert Badge */}
+          {hasDueSoon && (
+            <button
+              type="button"
+              onClick={() => onOpenPaymentModal(primaryDueSoon.card.id)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/80 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 transition-colors shadow-2xs cursor-pointer animate-pulse"
+              title={`Payment required for ${primaryDueSoon.card.name} within 3 days (${formatMoney(primaryDueSoon.amountDue)}). Click to pay.`}
+            >
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping shrink-0" />
+              <span className="font-bold">Due Soon:</span>
+              <span className="truncate max-w-[110px]">{primaryDueSoon.card.name}</span>
+              <span className="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-200/80 dark:bg-rose-800 text-rose-900 dark:text-rose-100">
+                {primaryDueSoon.badgeLabel}
+              </span>
+            </button>
+          )}
 
           <button
-            onClick={onOpenPaymentModal}
+            onClick={() => onOpenPaymentModal(primaryDueSoon?.card.id)}
             className="px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
           >
             <CreditCard className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
@@ -217,6 +268,17 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             <Plus className="w-3.5 h-3.5" />
             <span>Record</span>
           </button>
+
+          {onOpenSettings && (
+            <button
+              onClick={onOpenSettings}
+              className="p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="Settings (Currency & Preferences)"
+              aria-label="Open settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
     </header>

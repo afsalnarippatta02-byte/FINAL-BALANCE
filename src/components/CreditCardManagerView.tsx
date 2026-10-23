@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { 
   CreditCard as CardIcon, 
   Plus, 
-  RefreshCw, 
   Calculator, 
   AlertTriangle, 
   Clock, 
@@ -24,7 +23,7 @@ export const CreditCardManagerView: React.FC<CreditCardManagerViewProps> = ({
   onPayCard,
   onOpenAddCard,
 }) => {
-  const { cards, alerts, isSyncing, triggerManualSync, formatMoney, currencySymbol } = useFinance();
+  const { cards, alerts, formatMoney, currencySymbol } = useFinance();
 
   // Debt Payoff Simulator state
   const totalDebt = useMemo(() => {
@@ -111,15 +110,6 @@ export const CreditCardManagerView: React.FC<CreditCardManagerViewProps> = ({
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => triggerManualSync()}
-              disabled={isSyncing}
-              className="px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-indigo-600 dark:text-indigo-400' : ''}`} />
-              <span>{isSyncing ? 'Syncing...' : 'Sync All Feeds'}</span>
-            </button>
-
-            <button
               onClick={onOpenAddCard}
               className="px-3.5 py-2 text-xs font-medium text-white bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs whitespace-nowrap"
             >
@@ -161,7 +151,7 @@ export const CreditCardManagerView: React.FC<CreditCardManagerViewProps> = ({
             Your Credit Accounts ({cards.length})
           </h3>
           <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">
-            {cards.filter(c => c.isAutoSyncEnabled).length} Auto-Synced
+            Direct Management
           </span>
         </div>
 
@@ -189,8 +179,6 @@ export const CreditCardManagerView: React.FC<CreditCardManagerViewProps> = ({
                 key={card.id}
                 card={card}
                 onPayClick={(id) => onPayCard(id)}
-                onSyncClick={(id) => triggerManualSync(id)}
-                isSyncing={isSyncing}
               />
             ))}
           </div>

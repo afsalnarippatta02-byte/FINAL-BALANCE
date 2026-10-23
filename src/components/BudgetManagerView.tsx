@@ -3,6 +3,7 @@ import {
   PieChart, 
   Edit3, 
   Plus, 
+  Sliders,
   TrendingUp, 
   TrendingDown, 
   CheckCircle2, 
@@ -13,12 +14,14 @@ import { useFinance } from '../context/FinanceContext';
 import { BudgetCategory } from '../types/finance';
 import { BudgetProgressBar } from './BudgetProgressBar';
 import { BudgetEditModal } from './modals/BudgetEditModal';
+import { CustomizeBudgetsModal } from './modals/CustomizeBudgetsModal';
 import { DeleteConfirmModal, DeleteTarget } from './modals/DeleteConfirmModal';
 
 export const BudgetManagerView: React.FC = () => {
   const { categories, transactions, addCategory, deleteCategory, formatMoney, currencySymbol } = useFinance();
   const [selectedCategory, setSelectedCategory] = useState<BudgetCategory | null>(null);
   const [isNewCategoryModalOpen, setIsNewCategoryModalOpen] = useState(false);
+  const [isCustomizeAllOpen, setIsCustomizeAllOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -30,13 +33,18 @@ export const BudgetManagerView: React.FC = () => {
   const now = new Date();
   const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  // Calculate actual spend for each category in current month
+  // Calculate actual spend for each category in current month (or all recorded expenses if new month)
   const categoryStats = useMemo(() => {
     const spendMap: Record<string, number> = {};
-    transactions.forEach(tx => {
-      if (tx.type === 'expense' && tx.date.startsWith(currentMonthPrefix)) {
-        spendMap[tx.categoryId] = (spendMap[tx.categoryId] || 0) + tx.amount;
-      }
+    const allExpenses = transactions.filter(tx => tx.type === 'expense');
+    const thisMonthExpenses = allExpenses.filter(tx => tx.date.startsWith(currentMonthPrefix));
+    const targetList = thisMonthExpenses.length > 0 ? thisMonthExpenses : allExpenses;
+
+    targetList.forEach(tx => {
+      const targetCatId = categories.some(c => c.id === tx.categoryId)
+        ? tx.categoryId
+        : (categories[0]?.id ?? 'cat-housing');
+      spendMap[targetCatId] = (spendMap[targetCatId] || 0) + tx.amount;
     });
 
     return categories.map(cat => {
@@ -91,17 +99,28 @@ export const BudgetManagerView: React.FC = () => {
               Monthly Budget Allocator
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Set spending limits by category to keep expenses below your income ceiling
+              Set and customise spending targets by category to control your living expenses
             </p>
           </div>
 
-          <button
-            onClick={() => setIsNewCategoryModalOpen(true)}
-            className="px-3.5 py-2 text-xs font-medium text-white bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs self-start sm:self-auto"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New Category</span>
-          </button>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={() => setIsCustomizeAllOpen(true)}
+              className="px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
+              title="Manually set all budget amounts"
+            >
+              <Sliders className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Customise Budgets</span>
+            </button>
+
+            <button
+              onClick={() => setIsNewCategoryModalOpen(true)}
+              className="px-3.5 py-2 text-xs font-medium text-white bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Category</span>
+            </button>
+          </div>
         </div>
 
         {/* Global Progress Bar */}
@@ -227,6 +246,12 @@ export const BudgetManagerView: React.FC = () => {
           onClose={() => setSelectedCategory(null)}
         />
       )}
+
+      {/* Customize All Budgets Modal */}
+      <CustomizeBudgetsModal
+        isOpen={isCustomizeAllOpen}
+        onClose={() => setIsCustomizeAllOpen(false)}
+      />
 
       {/* Add New Category Modal */}
       {isNewCategoryModalOpen && (

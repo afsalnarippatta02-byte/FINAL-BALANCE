@@ -7,6 +7,7 @@ import {
   Upload, 
   Download, 
   Trash2, 
+  Edit3,
   CheckCircle2, 
   Clock,
   ArrowUpDown,
@@ -26,6 +27,7 @@ import {
 import { useFinance } from '../context/FinanceContext';
 import { Transaction, TransactionType } from '../types/finance';
 import { DeleteConfirmModal, DeleteTarget } from './modals/DeleteConfirmModal';
+import { EditTransactionModal } from './modals/EditTransactionModal';
 
 interface TransactionLedgerViewProps {
   onOpenAddTransaction: () => void;
@@ -57,6 +59,7 @@ export const TransactionLedgerView: React.FC<TransactionLedgerViewProps> = ({
 
   // Modal & Toast states
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [editTarget, setEditTarget] = useState<Transaction | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Helper to calculate date strings for presets
@@ -672,21 +675,31 @@ export const TransactionLedgerView: React.FC<TransactionLedgerViewProps> = ({
                     </span>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      setDeleteTarget({
-                        type: 'transaction',
-                        id: tx.id,
-                        title: tx.merchant,
-                        details: `${tx.date} · ${formatMoney(tx.amount)} · ${cat?.name || 'Uncategorized'}`,
-                      });
-                    }}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-md transition-colors"
-                    title="Delete transaction"
-                    aria-label={`Delete ${tx.merchant}`}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setEditTarget(tx)}
+                      className="p-1.5 text-slate-400 hover:text-indigo-600 dark:text-slate-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-md transition-colors"
+                      title="Edit transaction"
+                      aria-label={`Edit ${tx.merchant}`}
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDeleteTarget({
+                          type: 'transaction',
+                          id: tx.id,
+                          title: tx.merchant,
+                          details: `${tx.date} · ${formatMoney(tx.amount)} · ${cat?.name || 'Uncategorized'}`,
+                        });
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-md transition-colors"
+                      title="Delete transaction"
+                      aria-label={`Delete ${tx.merchant}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Middle Row: Merchant & Amount */}
@@ -749,7 +762,7 @@ export const TransactionLedgerView: React.FC<TransactionLedgerViewProps> = ({
                 <th className="py-3 px-4">Account</th>
                 <th className="py-3 px-4 text-center">Status</th>
                 <th className="py-3 px-4 text-right">Amount</th>
-                <th className="py-3 px-4 text-center w-12">Action</th>
+                <th className="py-3 px-4 text-center w-20">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-slate-700 dark:text-slate-300">
@@ -832,21 +845,31 @@ export const TransactionLedgerView: React.FC<TransactionLedgerViewProps> = ({
                         </span>
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => {
-                            setDeleteTarget({
-                              type: 'transaction',
-                              id: tx.id,
-                              title: tx.merchant,
-                              details: `${tx.date} · ${formatMoney(tx.amount)} · ${cat?.name || 'Uncategorized'}`,
-                            });
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-md transition-colors"
-                          title="Delete transaction"
-                          aria-label={`Delete transaction from ${tx.merchant}`}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => setEditTarget(tx)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 dark:text-slate-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-md transition-colors"
+                            title="Edit transaction"
+                            aria-label={`Edit transaction from ${tx.merchant}`}
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setDeleteTarget({
+                                type: 'transaction',
+                                id: tx.id,
+                                title: tx.merchant,
+                                details: `${tx.date} · ${formatMoney(tx.amount)} · ${cat?.name || 'Uncategorized'}`,
+                              });
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-md transition-colors"
+                            title="Delete transaction"
+                            aria-label={`Delete transaction from ${tx.merchant}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -868,6 +891,13 @@ export const TransactionLedgerView: React.FC<TransactionLedgerViewProps> = ({
             setTimeout(() => setToastMessage(null), 3000);
           }
         }}
+      />
+
+      {/* 7. Edit Recorded Transaction Modal */}
+      <EditTransactionModal
+        transaction={editTarget}
+        isOpen={!!editTarget}
+        onClose={() => setEditTarget(null)}
       />
 
       {/* 7. Floating Success Toast */}

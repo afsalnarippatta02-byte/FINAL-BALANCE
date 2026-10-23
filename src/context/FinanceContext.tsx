@@ -4,18 +4,17 @@ import {
   BudgetCategory, 
   CreditCard, 
   DebtAlert, 
+  DueDateAlert,
   SyncRecord,
-  CurrencyCode 
+  CurrencyCode,
+  FriendLoan 
 } from '../types/finance';
 import { 
   INITIAL_CATEGORIES, 
   INITIAL_CARDS, 
   INITIAL_TRANSACTIONS, 
   INITIAL_SYNC_LOGS, 
-  SAMPLE_DEMO_CARDS,
-  SAMPLE_DEMO_TRANSACTIONS,
-  SAMPLE_DEMO_SYNC_LOGS,
-  SIMULATED_MERCHANT_FEED,
+  INITIAL_FRIEND_LOANS,
   getOffsetDate
 } from '../data/initialData';
 
@@ -27,7 +26,10 @@ interface FinanceContextType {
   categories: BudgetCategory[];
   cards: CreditCard[];
   transactions: Transaction[];
+  friendLoans: FriendLoan[];
+  totalFriendsLentOutstanding: number;
   alerts: DebtAlert[];
+  checkCreditCardDueDates: (daysThreshold?: number) => DueDateAlert[];
   syncLogs: SyncRecord[];
   isSyncing: boolean;
   autoSyncActive: boolean;
@@ -38,6 +40,7 @@ interface FinanceContextType {
   deleteTransaction: (id: string) => void;
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
   updateCategoryBudget: (categoryId: string, monthlyBudget: number) => void;
+  updateMultipleCategoryBudgets: (updates: { categoryId: string; monthlyBudget: number }[]) => void;
   addCategory: (category: Omit<BudgetCategory, 'id'>) => void;
   deleteCategory: (categoryId: string) => void;
   addCreditCard: (card: Omit<CreditCard, 'id' | 'statementBalance' | 'minimumPayment' | 'isAutoSyncEnabled' | 'isPaidForCycle'>) => void;
@@ -46,8 +49,11 @@ interface FinanceContextType {
   recordPayment: (cardId: string, amount: number) => void;
   markCardPaidEarly: (cardId: string, isPaid: boolean) => void;
   importCSV: (csvContent: string) => { added: number; errors: string[] };
+  addFriendLoan: (loan: Omit<FriendLoan, 'id' | 'status'>) => void;
+  settleFriendLoan: (loanId: string, actualReturnDate?: string, restoreCardLimit?: boolean) => void;
+  deleteFriendLoan: (loanId: string, revertCardLimit?: boolean) => void;
+  updateFriendLoan: (loanId: string, updates: Partial<FriendLoan>) => void;
   clearAllData: () => void;
-  loadSampleData: () => void;
   resetData: () => void;
 }
 
@@ -60,6 +66,7 @@ const STORAGE_KEYS = {
   TRANSACTIONS: 'finalbalance_transactions_v4',
   SYNC_LOGS: 'finalbalance_sync_logs_v4',
   AUTO_SYNC: 'finalbalance_auto_sync_v4',
+  FRIEND_LOANS: 'finalbalance_friend_loans_v4',
 };
 
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -124,6 +131,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   });
 
+  const [friendLoans, setFriendLoans] = useState<FriendLoan[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.FRIEND_LOANS);
+      return saved ? JSON.parse(saved) : INITIAL_FRIEND_LOANS;
+    } catch {
+      return INITIAL_FRIEND_LOANS;
+    }
+  });
+
   const [autoSyncActive, setAutoSyncActive] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.AUTO_SYNC);
@@ -135,6 +151,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastGlobalSync, setLastGlobalSync] = useState<string | null>(null);
+
+  const totalFriendsLentOutstanding = useMemo(() => {
+    return friendLoans
+      .filter(l => l.status === 'pending')
+      .reduce((sum, l) => sum + l.amount, 0);
+  }, [friendLoans]);
 
   // Clean legacy dummy keys on initial mount to guarantee fresh clean state
   useEffect(() => {
@@ -176,6 +198,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.AUTO_SYNC, JSON.stringify(autoSyncActive));
   }, [autoSyncActive]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.FRIEND_LOANS, JSON.stringify(friendLoans));
+  }, [friendLoans]);
 
   // Compute Debt & Budget Alerts
   // CRITICAL REQUIREMENT: If paid earlier, do NOT trigger notification reminders!
@@ -266,53 +292,37 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return list;
   }, [cards, transactions, categories, formatMoney]);
 
-  // Automated Sync Simulator
+  // Bank & Card Feed Reconciliation Sync (Real reconciliation, no mock/synthetic transactions)
   const triggerManualSync = useCallback(async (specificCardId?: string) => {
     setIsSyncing(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
     const targetCards = specificCardId 
       ? cards.filter(c => c.id === specificCardId) 
       : cards.filter(c => c.isAutoSyncEnabled);
+
+    const nowIso = new Date().toISOString();
 
     if (targetCards.length === 0) {
       setIsSyncing(false);
       return { count: 0, total: 0 };
     }
 
-    const newTransactions: Transaction[] = [];
-    let grandTotal = 0;
-    const nowIso = new Date().toISOString();
+    // Statement reconciliation: mark any pending charges as cleared once verified
+    let reconciledCount = 0;
+    setTransactions(prev => prev.map(tx => {
+      if (tx.status === 'pending' && targetCards.some(c => c.id === tx.accountId)) {
+        reconciledCount++;
+        return { ...tx, status: 'cleared' };
+      }
+      return tx;
+    }));
 
-    targetCards.forEach(card => {
-      const template = SIMULATED_MERCHANT_FEED[Math.floor(Math.random() * SIMULATED_MERCHANT_FEED.length)];
-      const amount = parseFloat((Math.random() * (template.amountMax - template.amountMin) + template.amountMin).toFixed(2));
-      
-      const newTx: Transaction = {
-        id: `tx-sync-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        date: getOffsetDate(0),
-        amount,
-        merchant: template.merchant,
-        categoryId: template.categoryId,
-        accountId: card.id,
-        status: Math.random() > 0.3 ? 'cleared' : 'pending',
-        type: 'expense',
-        notes: `Auto-synced charge from ${card.bankName}`,
-      };
-
-      newTransactions.push(newTx);
-      grandTotal += amount;
-    });
-
-    setTransactions(prev => [newTransactions[0], ...prev]);
-    
+    // Update verified statement sync timestamps
     setCards(prevCards => prevCards.map(c => {
-      const addedTx = newTransactions.find(t => t.accountId === c.id);
-      if (addedTx) {
+      if (targetCards.some(tc => tc.id === c.id)) {
         return {
           ...c,
-          currentBalance: parseFloat((c.currentBalance + addedTx.amount).toFixed(2)),
-          isPaidForCycle: false, // new charge restores reminder if unbilled
           lastSyncedAt: nowIso,
         };
       }
@@ -322,9 +332,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const newLog: SyncRecord = {
       id: `sync-${Date.now()}`,
       timestamp: nowIso,
-      cardName: specificCardId ? (cards.find(c => c.id === specificCardId)?.name || 'Credit Card') : 'Connected Cards',
-      transactionsImported: newTransactions.length,
-      totalAmount: parseFloat(grandTotal.toFixed(2)),
+      cardName: specificCardId ? (cards.find(c => c.id === specificCardId)?.name || 'Credit Card') : 'All Connected Cards',
+      transactionsImported: reconciledCount,
+      totalAmount: 0,
       status: 'completed',
     };
 
@@ -332,7 +342,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setLastGlobalSync(nowIso);
     setIsSyncing(false);
 
-    return { count: newTransactions.length, total: grandTotal };
+    return { count: reconciledCount, total: 0 };
   }, [cards]);
 
   // Periodic Auto-Sync Interval
@@ -403,12 +413,82 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateTransaction = (id: string, updates: Partial<Transaction>) => {
-    setTransactions(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
+    const prevTx = transactions.find(t => t.id === id);
+    if (!prevTx) return;
+
+    const nextTx: Transaction = { ...prevTx, ...updates };
+
+    // Revert old transaction effect on card balance if it was on a credit card
+    if (prevTx.accountId.startsWith('card-')) {
+      const oldDelta = prevTx.type === 'expense' ? -prevTx.amount : prevTx.amount;
+      setCards(prevCards => prevCards.map(c => {
+        if (c.id === prevTx.accountId) {
+          const nextBal = Math.max(0, parseFloat((c.currentBalance + oldDelta).toFixed(2)));
+          return { ...c, currentBalance: nextBal };
+        }
+        return c;
+      }));
+    }
+
+    // Apply new updated transaction effect on card balance if it is on a credit card
+    if (nextTx.accountId.startsWith('card-')) {
+      const newDelta = nextTx.type === 'expense' ? nextTx.amount : -nextTx.amount;
+      setCards(prevCards => prevCards.map(c => {
+        if (c.id === nextTx.accountId) {
+          const nextBal = Math.max(0, parseFloat((c.currentBalance + newDelta).toFixed(2)));
+          return { ...c, currentBalance: nextBal };
+        }
+        return c;
+      }));
+    }
+
+    setTransactions(prev => prev.map(t => (t.id === id ? nextTx : t)));
   };
 
   const updateCategoryBudget = (categoryId: string, monthlyBudget: number) => {
     setCategories(prev => prev.map(c => (c.id === categoryId ? { ...c, monthlyBudget } : c)));
   };
+
+  // Bulk / manual customization of multiple category budget amounts
+  const updateMultipleCategoryBudgets = useCallback((updates: { categoryId: string; monthlyBudget: number }[]) => {
+    setCategories(prev => prev.map(cat => {
+      const match = updates.find(u => u.categoryId === cat.id);
+      return match ? { ...cat, monthlyBudget: Math.max(0, match.monthlyBudget) } : cat;
+    }));
+  }, []);
+
+  // Helper function that checks credit card due dates and identifies payments required within next 3 days
+  const checkCreditCardDueDates = useCallback((daysThreshold: number = 3): DueDateAlert[] => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return cards
+      .filter((card) => {
+        // If card is paid early or balance is zero, skip reminders
+        if (card.isPaidForCycle || card.currentBalance <= 0 || card.statementBalance <= 0) {
+          return false;
+        }
+        const dueDate = new Date(card.statementDueDate + 'T00:00:00');
+        const diffTime = dueDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays >= 0 && diffDays <= daysThreshold;
+      })
+      .map((card) => {
+        const dueDate = new Date(card.statementDueDate + 'T00:00:00');
+        const diffTime = dueDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const badgeLabel = diffDays === 0 ? 'Due Today' : `Due in ${diffDays}d`;
+        return {
+          card,
+          daysRemaining: diffDays,
+          dueDate: card.statementDueDate,
+          amountDue: card.statementBalance > 0 ? card.statementBalance : card.currentBalance,
+          isUrgent: true,
+          badgeLabel,
+        };
+      })
+      .sort((a, b) => a.daysRemaining - b.daysRemaining);
+  }, [cards]);
 
   const addCategory = (category: Omit<BudgetCategory, 'id'>) => {
     const id = `cat-${Date.now()}`;
@@ -537,23 +617,96 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return { added: newItems.length, errors: [] };
   };
 
+  const addFriendLoan = (loanData: Omit<FriendLoan, 'id' | 'status'>) => {
+    const id = `loan-${Date.now()}`;
+    const newLoan: FriendLoan = {
+      ...loanData,
+      id,
+      status: 'pending',
+    };
+    setFriendLoans(prev => [newLoan, ...prev]);
+
+    // Update credit card balance ONLY (reducing available limit), without impacting personal budget or expenses!
+    if (loanData.cardId) {
+      setCards(prevCards => prevCards.map(c => {
+        if (c.id === loanData.cardId) {
+          const nextBal = parseFloat((c.currentBalance + loanData.amount).toFixed(2));
+          return {
+            ...c,
+            currentBalance: nextBal,
+            isPaidForCycle: false,
+          };
+        }
+        return c;
+      }));
+    }
+  };
+
+  const settleFriendLoan = (loanId: string, actualReturnDate?: string, restoreCardLimit: boolean = true) => {
+    const returnDate = actualReturnDate || new Date().toISOString().split('T')[0];
+    const target = friendLoans.find(l => l.id === loanId);
+    if (!target) return;
+
+    setFriendLoans(prev => prev.map(l => {
+      if (l.id === loanId) {
+        return {
+          ...l,
+          status: 'returned',
+          actualReturnDate: returnDate,
+        };
+      }
+      return l;
+    }));
+
+    // Settle restores the credit card available limit
+    if (restoreCardLimit && target.status === 'pending' && target.cardId) {
+      setCards(prevCards => prevCards.map(c => {
+        if (c.id === target.cardId) {
+          const nextBal = Math.max(0, parseFloat((c.currentBalance - target.amount).toFixed(2)));
+          return {
+            ...c,
+            currentBalance: nextBal,
+            isPaidForCycle: nextBal === 0 ? true : c.isPaidForCycle,
+          };
+        }
+        return c;
+      }));
+    }
+  };
+
+  const deleteFriendLoan = (loanId: string, revertCardLimit: boolean = true) => {
+    const target = friendLoans.find(l => l.id === loanId);
+    if (target && revertCardLimit && target.status === 'pending' && target.cardId) {
+      setCards(prevCards => prevCards.map(c => {
+        if (c.id === target.cardId) {
+          const nextBal = Math.max(0, parseFloat((c.currentBalance - target.amount).toFixed(2)));
+          return {
+            ...c,
+            currentBalance: nextBal,
+          };
+        }
+        return c;
+      }));
+    }
+    setFriendLoans(prev => prev.filter(l => l.id !== loanId));
+  };
+
+  const updateFriendLoan = (loanId: string, updates: Partial<FriendLoan>) => {
+    setFriendLoans(prev => prev.map(l => l.id === loanId ? { ...l, ...updates } : l));
+  };
+
   const clearAllData = () => {
     localStorage.removeItem(STORAGE_KEYS.CARDS);
     localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
     localStorage.removeItem(STORAGE_KEYS.SYNC_LOGS);
     localStorage.removeItem(STORAGE_KEYS.AUTO_SYNC);
+    localStorage.removeItem(STORAGE_KEYS.FRIEND_LOANS);
     setCards([]);
     setTransactions([]);
     setSyncLogs([]);
+    setFriendLoans([]);
     setAutoSyncActive(false);
     setLastGlobalSync(null);
-  };
-
-  const loadSampleData = () => {
-    setCategories(INITIAL_CATEGORIES);
-    setCards(SAMPLE_DEMO_CARDS);
-    setTransactions(SAMPLE_DEMO_TRANSACTIONS);
-    setSyncLogs(SAMPLE_DEMO_SYNC_LOGS);
   };
 
   const resetData = () => {
@@ -570,7 +723,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         categories,
         cards,
         transactions,
+        friendLoans,
+        totalFriendsLentOutstanding,
         alerts,
+        checkCreditCardDueDates,
         syncLogs,
         isSyncing,
         autoSyncActive,
@@ -581,6 +737,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         deleteTransaction,
         updateTransaction,
         updateCategoryBudget,
+        updateMultipleCategoryBudgets,
         addCategory,
         deleteCategory,
         addCreditCard,
@@ -589,8 +746,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         recordPayment,
         markCardPaidEarly,
         importCSV,
+        addFriendLoan,
+        settleFriendLoan,
+        deleteFriendLoan,
+        updateFriendLoan,
         clearAllData,
-        loadSampleData,
         resetData,
       }}
     >

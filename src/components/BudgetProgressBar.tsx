@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Edit3 } from 'lucide-react';
 import { BudgetCategory } from '../types/finance';
 import { useFinance } from '../context/FinanceContext';
 
@@ -104,9 +104,21 @@ export const BudgetProgressBar: React.FC<BudgetProgressBarProps> = ({
               {formatMoney(spent)}
             </span>
             <span className="text-slate-400 dark:text-slate-500">/</span>
-            <span className="tabular-nums">
-              {formatMoney(budget)}
-            </span>
+            {onEdit ? (
+              <button
+                type="button"
+                onClick={() => onEdit(category)}
+                className="inline-flex items-center gap-1 hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline cursor-pointer group"
+                title="Click to customise budget amount"
+              >
+                <span className="tabular-nums font-semibold">{formatMoney(budget)}</span>
+                <Edit3 className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100" />
+              </button>
+            ) : (
+              <span className="tabular-nums">
+                {formatMoney(budget)}
+              </span>
+            )}
           </div>
 
           <div>
